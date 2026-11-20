@@ -105,6 +105,8 @@ table.tb{width:100%;border-collapse:collapse;font-size:.92rem}.tb th,.tb td{padd
 .cam{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}.cam small{font-size:.62rem;color:var(--muted)}
 .ptag{position:absolute;left:2px;bottom:2px;font-style:normal;font-size:.68rem;font-weight:800;background:#fff;border-radius:6px;padding:0 2px}
 .ck{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-weight:800;margin:12px 0 6px}.ck input{width:22px;height:22px;accent-color:var(--teal)}.ck .sm{flex-basis:100%;font-weight:400;padding-left:30px}
+.htr{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}.htr span{width:5.2em;color:var(--muted);font-size:.86rem;flex:none}.htr b{flex:1;min-width:0;word-break:break-all}.htr .chip{padding:5px 10px;font-size:.8rem}
+.htl{border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin-top:6px}
 .qgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}.qgrid label{font-size:.76rem;font-weight:800;color:#374151;display:flex;flex-direction:column;gap:3px}.qgrid .inp{padding:9px 8px;text-align:right}
 .adv{background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:.84rem;line-height:1.55;color:#0c4a6e}.adv div+div{margin-top:3px}
 .hit{font-size:.84rem;color:#374151;background:#f8fafc;border-radius:10px;padding:6px 10px;margin:-4px 0 6px}
@@ -898,6 +900,9 @@ const CLI_TPL = {
   기타: [["수건", "장"], ["유니폼", "벌"], ["시트", "장"]].map(([k, u]) => ({ k, u, p: 0 })),
 };
 const WDN = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtBiz = v => { const d = digits(v); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : String(v || "").trim(); };
+const lastDay = mm => { const [y, m] = mm.split("-").map(Number); return ymd(new Date(y, m, 0)); };
+async function copyTxt(t, what) { try { await navigator.clipboard.writeText(String(t)); toast(`${what} 복사했어요`); } catch { prompt("길게 눌러 복사하세요", String(t)); } }
 const cliById = id => (S.cli || []).find(c => c.id === id);
 const batOf = cid => (S.bat || []).filter(b => b.cid === cid);
 const BST = ["🚚 수거", "🫧 세탁 중", "✅ 납품 완료"];
@@ -957,6 +962,10 @@ function cliForm(c) {
       <label class="lab">이름</label><input class="inp" id="cN" value="${esc(C.name)}" placeholder="예: ○○병원 세탁실, ○○소방서">
       <div class="g2"><div><label class="lab">담당자</label><input class="inp" id="cP" value="${esc(C.person)}" placeholder="예: 김간호사"></div><div><label class="lab">전화</label><input class="inp" id="cT" type="tel" value="${esc(C.tel)}"></div></div>
       <label class="lab">주소·수거 장소</label><input class="inp" id="cA" value="${esc(C.addr)}" placeholder="예: 본관 지하 1층 린넨실">
+      <label class="lab">🏛 세금계산서 받는 쪽 <span class="sm">(사업자등록증 보고 적어요)</span></label>
+      <input class="inp" id="cBiz" inputmode="numeric" value="${esc(C.biz || "")}" placeholder="사업자등록번호 (예: 123-45-67890)">
+      <div class="g2 mt"><input class="inp" id="cCorp" value="${esc(C.corp || "")}" placeholder="상호(법인명)"><input class="inp" id="cRep" value="${esc(C.rep || "")}" placeholder="대표자 성명"></div>
+      <input class="inp mt" id="cMail" type="email" value="${esc(C.mail || "")}" placeholder="세금계산서 받을 이메일">
       <label class="lab">📅 정기 수거 요일</label><div class="chips">${WDN.map((w, i) => `<button class="chip ${C.days.includes(i) ? "on" : ""}" data-dw="${i}">${w}</button>`).join("")}</div>
       <label class="lab">🚚 수거 후 며칠 뒤 납품</label><div class="chips">${[1, 2, 3, 7].map(n => `<button class="chip ${C.lead === n ? "on" : ""}" data-ld="${n}">${n}일</button>`).join("")}</div>
       <label class="lab">💵 청구 기준</label><div class="chips"><button class="chip ${C.bill !== "in" ? "on" : ""}" data-bl="out">납품 수량</button><button class="chip ${C.bill === "in" ? "on" : ""}" data-bl="in">수거 수량</button></div>
@@ -977,6 +986,10 @@ function cliForm(c) {
       B.querySelector("#cP").oninput = e => { C.person = e.target.value; };
       B.querySelector("#cT").onchange = e => { C.tel = fmtTel(e.target.value); };
       B.querySelector("#cA").oninput = e => { C.addr = e.target.value; };
+      B.querySelector("#cBiz").onchange = e => { C.biz = fmtBiz(e.target.value); e.target.value = C.biz; };
+      B.querySelector("#cCorp").oninput = e => { C.corp = e.target.value.trim(); };
+      B.querySelector("#cRep").oninput = e => { C.rep = e.target.value.trim(); };
+      B.querySelector("#cMail").oninput = e => { C.mail = e.target.value.trim(); };
       B.querySelector("#cM").oninput = e => { C.memo = e.target.value; };
       B.querySelector("#cV").onchange = e => { C.vat = e.target.checked ? 1 : 0; };
       B.querySelector("#cAct")?.addEventListener("change", e => { C.active = e.target.checked; });
@@ -1012,7 +1025,7 @@ function viewCliOne(arg) {
     <dt>장소</dt><dd>${esc(c.addr || "-")}</dd><dt>청구</dt><dd>${c.bill === "in" ? "수거 수량" : "납품 수량"} 기준${c.vat ? " · 부가세 별도" : ""}</dd>${c.memo ? `<dt>메모</dt><dd>${esc(c.memo)}</dd>` : ""}</dl>
     <table class="tb mt">${c.items.map(it => `<tr><td>${esc(it.k)}${it.inf ? " 🦠" : ""}${it.ind ? " 🔢" : ""}</td><td>${it.p ? won(it.p) + " / " + it.u : `<span class="late">단가 없음</span>`}</td></tr>`).join("")}</table>
     <button class="btn b-gray mt" id="cEdit">✏️ 거래처·단가 고치기</button></section>
-  <section class="card"><div class="t">🧾 월 정산서</div><div class="chips">${months.slice(0, 12).map(mm => { const st = (S.billSt || {})[c.id + mm] || {}; return `<button class="chip" data-bill="${mm}">${+mm.slice(5)}월${st.paid ? " ✅" : st.sent ? " 📤" : ""}</button>`; }).join("")}</div><p class="sm" style="margin:8px 0 0">📤 청구함 · ✅ 입금 확인</p></section>
+  <section class="card"><div class="t">🧾 월 정산서</div><div class="chips">${months.slice(0, 12).map(mm => { const st = (S.billSt || {})[c.id + mm] || {}; return `<button class="chip" data-bill="${mm}">${+mm.slice(5)}월${st.tax ? " 🏛" : ""}${st.paid ? " ✅" : st.sent ? " 📤" : ""}</button>`; }).join("")}</div><p class="sm" style="margin:8px 0 0">🏛 세금계산서 발행 · 📤 청구함 · ✅ 입금 확인</p></section>
   ${gears ? `<section class="card"><div class="t">🔢 번호 관리 품목 <span>${(c.gearList || []).length}벌</span></div>${(c.gearList || []).length ? `<table class="tb"><tr><th>번호</th><th>주인</th><th>세탁</th><th>마지막</th></tr>${c.gearList.map(g => { const H = gearHist(c.id, g.code); return `<tr data-gear="${esc(g.code)}" style="cursor:pointer"><td><b>${esc(g.code)}</b></td><td>${esc(g.owner || "")}</td><td>${H.length}회</td><td>${H.length ? md(H[H.length - 1].d) : "-"}</td></tr>`; }).join("")}</table>` : `<p class="sm" style="margin:0">수거 기록에서 번호를 넣으면 여기에 쌓여요.</p>`}<button class="btn b-gray mt" id="gAdd">＋ 번호 등록 (예: 방화복 A-01 김소방)</button></section>` : ""}
   <section class="card"><div class="t">📋 회차 기록 <span>${B.length}회</span></div>${B.slice(0, 60).map(batRow).join("") || `<p class="sm" style="margin:0">아직 수거 기록이 없어요.</p>`}</section>`;
   wireHead();
@@ -1143,9 +1156,12 @@ function viewBill(arg) {
   ${c.tel ? `<button class="btn b-green" id="blSms">📱 담당자에게 문자로 보내기<small>${esc(c.person || "")} ${esc(c.tel)}${S.shop.acct ? " · 입금 계좌 포함" : " · ⚙에 계좌를 넣으면 같이 가요"}</small></button>` : ""}
   ${B.length ? `<button class="btn b-gray" id="blRc">🧾 이 달 간이영수증<small>품목별 합계 · ${st.paid ? "영수" : "청구"}</small></button>` : ""}
   <button class="btn b-blue" id="blShare">📤 정산서 보내기<small>카톡·문자·메일로 · 표는 화면을 캡처해 함께 보내도 돼요</small></button>
-  <p class="note">세금계산서는 홈택스에서 따로 발행해야 해요. 이 정산서는 수량·금액 확인용이에요.</p>`;
+  ${B.length ? hometaxBox(c, mm, items, tot, amt, unit, supply, vat, st) : ""}`;
   wireHead({ id: c.id });
   $("#view").querySelectorAll("[data-bat]").forEach(r => r.onclick = () => go("bat", { id: r.dataset.bat, from: "bill" }));
+  $("#view").querySelectorAll("[data-cp]").forEach(b => b.onclick = () => copyTxt(b.dataset.cp, b.dataset.what));
+  $("#htDone")?.addEventListener("click", () => { st.tax = st.tax ? "" : today(); save(); keep(() => viewBill(arg)); });
+  $("#htEdit")?.addEventListener("click", () => cliForm(c));
   $("#blSent").onclick = () => { st.sent = st.sent ? "" : today(); save(); keep(() => viewBill(arg)); };
   $("#blPaid").onclick = () => { st.paid = st.paid ? "" : today(); st.amt = supply + vat; save(); keep(() => viewBill(arg)); };
   $("#blSms")?.addEventListener("click", () => { if (!st.sent) { st.sent = today(); save(); } location.href = smsURL(c.tel, text()); });
@@ -1155,6 +1171,34 @@ function viewBill(arg) {
     rcptMake({ to: c.name, date: ymd(new Date()).replace(/-/g, ". "), rows, total: supply + vat, paid: !!st.paid }, `${c.name} ${d} 영수증`);
   });
   $("#blShare").onclick = async () => { await shareText(text(), `${c.name} ${+mm.slice(5)}월 정산서`); if (!st.sent && confirm("청구함으로 표시할까요?")) { st.sent = today(); save(); keep(() => viewBill(arg)); } };
+}
+
+/* 🏛 홈택스(손택스) 전자세금계산서 입력용: 칸마다 눌러서 복사 */
+function hometaxBox(c, mm, items, tot, amt, unit, supply, vat, st) {
+  /* 부가세 별도면 정산서 금액이 공급가액, 아니면 합계에 부가세가 들어 있다고 보고 나눈다 */
+  const total = c.vat ? supply + vat : supply, sup = c.vat ? supply : Math.round(supply / 1.1), tax = total - sup;
+  const day = lastDay(mm), mo = +mm.slice(5);
+  /* 홈택스 품목 칸은 4줄까지. 많으면 한 줄로 묶기 */
+  const lines = items.length <= 4 ? items.map(k => { const a = c.vat ? amt[k] : Math.round(amt[k] / 1.1); return { k, q: tot[k], p: unit(k)?.p || 0, sup: a, tax: Math.round(a / 10) }; })
+    : [{ k: `${mo}월 세탁비 (${items[0]} 외 ${items.length - 1}종)`, q: 1, p: sup, sup, tax }];
+  if (lines.length > 1) { const ds = sup - lines.reduce((t, l) => t + l.sup, 0), dt = tax - lines.reduce((t, l) => t + l.tax, 0); lines[0].sup += ds; lines[0].tax += dt; }   /* 원 단위 반올림 차이는 첫 줄에서 맞춤 */
+  const row = (label, val, what = label) => `<div class="htr"><span>${label}</span><b>${esc(val === "" || val == null ? "-" : val)}</b>${val === "" || val == null ? "" : `<button class="chip" data-cp="${esc(String(val).replace(/,/g, ""))}" data-what="${esc(what)}">복사</button>`}</div>`;
+  const miss = [!c.biz && "사업자등록번호", !(c.corp || c.name) && "상호", !c.rep && "대표자"].filter(Boolean);
+  return `<section class="card"><div class="t">🏛 홈택스 입력용 <span>${st.tax ? `${md(st.tax)} 발행함` : "아직 발행 전"}</span></div>
+    <p class="sm" style="margin:0 0 8px">손택스 앱(또는 홈택스) → 전자세금계산서 발급 → 건별 발급 화면에 아래 값을 칸마다 <b>복사</b>해서 붙여 넣으세요.</p>
+    ${miss.length ? `<p class="late sm">거래처 정보에 ${miss.join(", ")}이(가) 없어요. <button class="chip" id="htEdit">거래처 정보 넣기</button></p>` : ""}
+    <div class="ilab">공급받는자</div>
+    ${row("등록번호", c.biz || "", "등록번호")}${row("상호", c.corp || c.name, "상호")}${row("성명", c.rep || "", "대표자")}${row("이메일", c.mail || "", "이메일")}
+    <div class="ilab">작성</div>
+    ${row("작성일자", day.replace(/-/g, ""), "작성일자")}
+    <div class="ilab">품목 ${lines.length}줄</div>
+    ${lines.map((l, i) => `<div class="htl"><b>${i + 1}. ${esc(l.k)}</b>
+      ${row("월일", day.slice(5).replace("-", ""), "월일")}${row("품목", l.k, "품목")}${row("수량", l.q, "수량")}${row("단가", l.p ? l.p.toLocaleString() : "", "단가")}${row("공급가액", l.sup.toLocaleString(), "공급가액")}${row("세액", l.tax.toLocaleString(), "세액")}</div>`).join("")}
+    <div class="ilab">합계</div>
+    ${row("공급가액", sup.toLocaleString(), "공급가액 합계")}${row("세액", tax.toLocaleString(), "세액 합계")}${row("합계금액", total.toLocaleString(), "합계금액")}
+    <p class="sm" style="margin:8px 0 0">${c.vat ? "" : "이 거래처는 '부가세 별도'가 꺼져 있어서, 정산 금액에 부가세가 들어 있다고 보고 공급가액과 세액으로 나눴어요. "}한 달 치를 모아 내는 <b>월합계 세금계산서</b>는 보통 그 달 <b>말일(${md(day)})</b>을 작성일자로 하고 <b>다음 달 10일까지</b> 발급해요. 정확한 기준은 세무사나 국세청(☎126)에 확인해 주세요.</p>
+    <div class="g2 mt"><a class="btn b-gray" href="https://www.hometax.go.kr" target="_blank" rel="noopener">🌐 홈택스 열기</a><button class="btn ${st.tax ? "b-gray" : "b-teal"}" id="htDone">${st.tax ? "↩ 발행 표시 지우기" : "🏛 발행했어요"}</button></div>
+  </section>`;
 }
 
 /* ---------- ⚙ 설정 · 가격표 · 백업 ---------- */
