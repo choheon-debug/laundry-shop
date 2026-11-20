@@ -125,6 +125,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 
 const ST = ["접수", "세탁 중", "완료", "찾아감"];
 const ST_E = ["📥", "🫧", "✅", "🙌"];
+const EXP_CAT = ["세제·약제", "옷걸이·비닐", "전기·수도·가스", "월세", "인건비", "기계 수리", "특수세탁 맡김", "배달·차량", "카드 수수료", "기타"];
 const FLAWS = ["얼룩", "찢어짐·흠", "단추 빠짐", "변색·물빠짐", "보풀", "냄새", "주머니 물건", "수선 필요"];
 const DEF_PRICE = [
   ["와이셔츠", 2500], ["블라우스", 4000], ["바지", 4000], ["치마", 4000], ["니트·스웨터", 5000], ["원피스", 7000],
@@ -133,7 +134,7 @@ const DEF_PRICE = [
 ];
 const def = () => ({
   v: 1, shop: { name: "", tel: "", keep: 30, msgDone: "[{가게}] {이름}님, 맡기신 옷({옷})이 다 되었어요. 편하실 때 찾으러 오세요. 감사합니다." },
-  price: DEF_PRICE.map(([k, p]) => ({ k, p })), seq: { d: "", n: 0 }, orders: [], draft: null,
+  price: DEF_PRICE.map(([k, p]) => ({ k, p })), seq: { d: "", n: 0 }, orders: [], draft: null, exp: [],
 });
 let S = def();
 try { const j = JSON.parse(localStorage.getItem(KEY) || "null"); if (j) S = Object.assign(def(), j, { shop: Object.assign(def().shop, j.shop) }); } catch { }
@@ -194,7 +195,7 @@ async function shareText(text, title) {
 }
 
 /* ---------- 화면 틀 ---------- */
-const TABS = [["home", "🏠", "오늘"], ["new", "➕", "접수"], ["board", "📋", "현황"], ["cust", "👤", "손님"], ["money", "💰", "매출"]];
+const TABS = [["home", "🏠", "오늘"], ["new", "➕", "접수"], ["board", "📋", "현황"], ["cust", "👤", "손님"], ["money", "💰", "돈"]];
 let tab = "home", tabArg = {}, boardF = "work";
 function nav() { $("#nav").innerHTML = TABS.map(([k, e, l]) => `<button class="${tab === k || (tab === "order" && k === "board") ? "on" : ""}" data-t="${k}"><span>${e}</span>${l}</button>`).join(""); $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t)); }
 function go(t, arg) { tab = t; tabArg = arg || {}; nav(); ({ home: viewHome, new: viewNew, board: viewBoard, cust: viewCust, money: viewMoney, order: viewOrder, person: viewPerson })[t](arg || {}); scrollTo(0, 0); }
@@ -425,16 +426,67 @@ function viewMoney() {
   const days = {}; L.forEach(o => { const x = o.at.slice(0, 10); (days[x] ||= { n: 0, c: 0, s: 0 }); days[x].n++; days[x].c += cntO(o); days[x].s += sumO(o); });
   const kinds = {}; L.forEach(o => o.items.forEach(it => { kinds[it.k] = (kinds[it.k] || 0) + it.q; }));
   const owe = S.orders.filter(o => unpaid(o) && o.st === 3);
-  $("#view").innerHTML = head("💰 매출", `${lbl} · ${md(a)}${a !== b ? " ~ " + md(b) : ""}`) + `
+  const E = (S.exp || []).filter(e => e.d >= a && e.d <= b).sort((x, y) => y.d.localeCompare(x.d) || (y.at || "").localeCompare(x.at || ""));
+  const spent = E.reduce((t, e) => t + (Number(e.amt) || 0), 0), cats = {};
+  E.forEach(e => { cats[e.cat] = (cats[e.cat] || 0) + (Number(e.amt) || 0); });
+  const lastFix = moneyP === "month" ? (S.exp || []).filter(e => e.fix && e.d >= lastMon && e.d < mon) : [];
+  const fixTodo = lastFix.filter(f => !E.some(e => e.fix && e.cat === f.cat && e.memo === f.memo && Number(e.amt) === Number(f.amt)));
+  $("#view").innerHTML = head("💰 매출·지출", `${lbl} · ${md(a)}${a !== b ? " ~ " + md(b) : ""}`) + `
   <div class="chips">${Object.entries(P).map(([k, v]) => `<button class="chip ${k === moneyP ? "on" : ""}" data-mp="${k}">${v[0]}</button>`).join("")}</div>
   <div class="g2"><div class="stat"><b>${won(sum)}</b><span>접수 금액</span></div><div class="stat"><b>${L.length}건 · ${L.reduce((s, o) => s + cntO(o), 0)}벌</b><span>접수</span></div>
-  <div class="stat"><b>${won(got)}</b><span>받은 돈</span></div><div class="stat"><b class="${sum - got ? "late" : ""}">${won(sum - got)}</b><span>아직 안 받은 돈</span></div></div>
+  <div class="stat"><b>${won(got)}</b><span>받은 돈</span></div><div class="stat"><b class="${sum - got ? "late" : ""}">${won(sum - got)}</b><span>아직 안 받은 돈</span></div>
+  <div class="stat"><b>${won(spent)}</b><span>➖ 지출</span></div><div class="stat" style="background:${got - spent < 0 ? "#fef2f2" : "#f0fdfa"}"><b class="${got - spent < 0 ? "late" : ""}" style="${got - spent < 0 ? "" : "color:var(--teal-d)"}">${won(got - spent)}</b><span>남는 돈 (받은 돈 − 지출)</span></div></div>
+  <button class="btn b-orange" id="mExp">➖ 지출 적기<small>세제, 월세, 전기요금 같은 나가는 돈</small></button>
+  ${fixTodo.length ? `<button class="btn b-gray" id="mFix">🔁 지난달 매달 나가는 돈 ${fixTodo.length}개 이번 달에 넣기<small>${fixTodo.map(f => esc(f.memo || f.cat)).slice(0, 4).join(", ")} · ${won(fixTodo.reduce((t, f) => t + Number(f.amt), 0))}</small></button>` : ""}
+  <section class="card"><div class="t">➖ 지출 <span>${won(spent)}</span></div>
+    ${Object.keys(cats).length ? `<table class="tb" style="margin-bottom:8px">${Object.entries(cats).sort((x, y) => y[1] - x[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${spent ? Math.round(v / spent * 100) : 0}%</td><td>${won(v)}</td></tr>`).join("")}</table>` : ""}
+    ${E.length ? E.slice(0, 80).map(e => `<button class="row" data-ex="${e.id}"><span class="no" style="min-width:3.2em">${md(e.d).replace(/\(.\)/, "")}</span><span class="main"><b>${esc(e.cat)}${e.fix ? ` <span class="sm" style="display:inline">🔁</span>` : ""}</b><span class="sm">${esc(e.memo || "")}${e.ph?.length ? " · 📷" : ""}</span></span><b>${won(e.amt)}</b></button>`).join("") : `<p class="sm" style="margin:0">이 기간에 적은 지출이 없어요.</p>`}
+  </section>
   <section class="card"><div class="t">📅 날짜별</div>${Object.keys(days).length ? `<table class="tb"><tr><th>날짜</th><th>건</th><th>벌</th><th>금액</th></tr>${Object.keys(days).sort().reverse().map(x => `<tr><td>${md(x)}</td><td>${days[x].n}</td><td>${days[x].c}</td><td>${won(days[x].s)}</td></tr>`).join("")}</table>` : `<p class="sm" style="margin:0">이 기간에 접수한 옷이 없어요.</p>`}</section>
   ${Object.keys(kinds).length ? `<section class="card"><div class="t">👕 많이 맡긴 옷</div><table class="tb">${Object.entries(kinds).sort((x, y) => y[1] - x[1]).slice(0, 10).map(([k, n]) => `<tr><td>${esc(k)}</td><td>${n}벌</td></tr>`).join("")}</table></section>` : ""}
   <section class="card ${owe.length ? "warn" : ""}"><div class="t">💸 찾아갔는데 안 받은 돈 <span>${won(owe.reduce((s, o) => s + unpaid(o), 0))}</span></div>${owe.length ? owe.map(o => oRow(o)).join("") : `<p class="sm" style="margin:0">없어요 👍</p>`}</section>
-  <p class="note">접수한 날 기준이에요. 금액은 가격표가 아니라 접수할 때 적은 금액으로 계산해요.</p>`;
+  <p class="note">매출은 접수한 날, 지출은 적은 날짜 기준이에요.<br>"남는 돈"은 실제로 받은 돈에서 지출을 뺀 금액이에요 (세금은 빼지 않았어요).</p>`;
   wireHead(); wireRows($("#view"), "money");
   $("#view").querySelectorAll("[data-mp]").forEach(b => b.onclick = () => { moneyP = b.dataset.mp; viewMoney(); });
+  $("#mExp").onclick = () => expForm(null, () => keep(viewMoney));
+  $("#view").querySelectorAll("[data-ex]").forEach(r => r.onclick = () => expForm((S.exp || []).find(e => e.id === r.dataset.ex), () => keep(viewMoney)));
+  $("#mFix")?.addEventListener("click", () => { if (!confirm(`지난달 매달 나가는 돈 ${fixTodo.length}개를 이번 달 1일로 넣을까요?\n(금액이 바뀌었으면 넣은 뒤 눌러서 고치세요)`)) return;
+    fixTodo.forEach(f => S.exp.push({ id: uid(), at: new Date().toISOString(), d: mon, cat: f.cat, amt: f.amt, memo: f.memo, fix: true, ph: [] })); save(); toast("넣었어요"); keep(viewMoney); });
+}
+/* ➖ 지출 적기 · 고치기 */
+function expForm(e, done) {
+  const E = e ? { ...e, ph: [...(e.ph || [])] } : { id: uid(), d: today(), cat: "", amt: "", memo: "", fix: false, ph: [] };
+  modal(e ? "➖ 지출 고치기" : "➖ 지출 적기", `<div id="exB"></div>`, (m, close) => {
+    const draw = () => {
+      m.querySelector("#exB").innerHTML = `
+      <label class="lab">📅 날짜</label><input class="inp" type="date" id="eD" value="${esc(E.d)}">
+      <label class="lab">📂 항목</label><div class="chips">${EXP_CAT.map(c => `<button class="chip ${E.cat === c ? "on" : ""}" data-ec="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+      <label class="lab">💵 금액 (원)</label><input class="inp" id="eA" type="number" inputmode="numeric" value="${esc(E.amt)}" placeholder="예: 35000">
+      <label class="lab">📝 메모</label><input class="inp" id="eM" value="${esc(E.memo)}" placeholder="예: 드라이 용제 1통, ○○상사">
+      <label class="lab" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="eF" ${E.fix ? "checked" : ""} style="width:22px;height:22px"> 🔁 매달 나가는 돈 (월세, 인건비처럼)</label>
+      <label class="lab">📷 영수증</label><div class="thumbs">${E.ph.map(pid => `<span class="ph"><img data-pid="${pid}" data-zoom="${pid}" alt="영수증"><button data-rmp="${pid}" aria-label="사진 지우기">✕</button></span>`).join("")}<button class="cam" id="eCam" aria-label="영수증 찍기">📷</button></div>
+      <button class="btn b-orange mt" id="eSave">💾 저장</button>
+      ${e ? `<button class="btn b-red mt" id="eDel">🗑 이 지출 지우기</button>` : ""}`;
+      const B = m.querySelector("#exB"); fillThumbs(B);
+      B.querySelector("#eD").onchange = x => { E.d = x.target.value; };
+      B.querySelectorAll("[data-ec]").forEach(c => c.onclick = () => { E.cat = c.dataset.ec; B.querySelectorAll("[data-ec]").forEach(y => y.classList.toggle("on", y === c)); });
+      B.querySelector("#eA").oninput = x => { E.amt = x.target.value; };
+      B.querySelector("#eM").oninput = x => { E.memo = x.target.value; };
+      B.querySelector("#eF").onchange = x => { E.fix = x.target.checked; };
+      B.querySelector("#eCam").onclick = async () => { const id = await pickPhoto(); if (id) { E.ph.push(id); draw(); } };
+      B.querySelectorAll("[data-rmp]").forEach(x => x.onclick = () => { if (!confirm("이 사진을 지울까요?")) return; E.ph = E.ph.filter(y => y !== x.dataset.rmp); if (!e?.ph?.includes(x.dataset.rmp)) delPhoto(x.dataset.rmp); draw(); });
+      B.querySelectorAll("[data-zoom]").forEach(im => im.onclick = () => zoomPhoto(im.dataset.zoom));
+      B.querySelector("#eSave").onclick = () => {
+        const amt = Number(digits(E.amt)); if (!E.cat) return toast("항목을 골라 주세요"); if (!amt) return toast("금액을 적어 주세요"); if (!E.d) return toast("날짜를 골라 주세요");
+        S.exp ||= []; const rec = { id: E.id, at: e?.at || new Date().toISOString(), d: E.d, cat: E.cat, amt, memo: E.memo.trim(), fix: E.fix, ph: E.ph };
+        if (e) { (e.ph || []).filter(x => !rec.ph.includes(x)).forEach(delPhoto); Object.assign(e, rec); } else S.exp.push(rec);
+        save(); toast(e ? "고쳤어요" : `지출 ${won(amt)} 적었어요`); m.onclose = null; close(); done?.();
+      };
+      B.querySelector("#eDel")?.addEventListener("click", () => { if (!confirm(`${E.cat} ${won(e.amt)} 지출을 지울까요?`)) return; (e.ph || []).forEach(delPhoto); S.exp = S.exp.filter(x => x !== e); save(); toast("지웠어요"); m.onclose = null; close(); done?.(); });
+    };
+    m.onclose = () => { E.ph.filter(x => !e?.ph?.includes(x)).forEach(delPhoto); };   /* 저장 안 하고 닫으면 새로 찍은 사진은 버림 */
+    draw();
+  });
 }
 
 /* ---------- ⚙ 설정 · 가격표 · 백업 ---------- */
@@ -468,8 +520,8 @@ function openSettings() {
       B.querySelector("#sDef").onclick = () => { if (confirm("가격표를 처음 기본값으로 되돌릴까요?")) { S.price = def().price; save(); draw(); } };
       B.querySelector("#sBk").onclick = backup;
       B.querySelector("#sLoad").onclick = () => restore(() => { close(); go("home"); });
-      B.querySelector("#sReset").onclick = async () => { if (!confirm("접수 기록, 손님, 사진을 모두 지울까요?\n(가게 정보와 가격표는 남아요)")) return; if (!confirm("정말 지울까요? 백업이 없으면 되돌릴 수 없어요.")) return;
-        for (const k of await allPhotoKeys().catch(() => [])) await delPhoto(k); S.orders = []; S.draft = null; S.seq = { d: "", n: 0 }; save(); close(); go("home"); toast("모두 지웠어요"); };
+      B.querySelector("#sReset").onclick = async () => { if (!confirm("접수 기록, 손님, 지출, 사진을 모두 지울까요?\n(가게 정보와 가격표는 남아요)")) return; if (!confirm("정말 지울까요? 백업이 없으면 되돌릴 수 없어요.")) return;
+        for (const k of await allPhotoKeys().catch(() => [])) await delPhoto(k); S.orders = []; S.exp = []; S.draft = null; S.seq = { d: "", n: 0 }; save(); close(); go("home"); toast("모두 지웠어요"); };
     };
     m.onclose = () => go(tab, tabArg);
     draw();
@@ -478,7 +530,8 @@ function openSettings() {
 const b64 = blob => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
 async function backup() {
   toast("백업 파일 만드는 중…");
-  const ph = {}; for (const o of S.orders) for (const it of o.items) for (const id of it.ph || []) { const b = await getPhoto(id).catch(() => null); if (b) ph[id] = await b64(b); }
+  const ph = {}, ids = [...S.orders.flatMap(o => o.items.flatMap(it => it.ph || [])), ...(S.exp || []).flatMap(e => e.ph || [])];
+  for (const id of ids) { const b = await getPhoto(id).catch(() => null); if (b) ph[id] = await b64(b); }
   const name = `세탁소장부_${today()}.json`;
   const file = new File([JSON.stringify({ app: "laundry-shop", savedAt: new Date().toISOString(), data: S, photos: ph })], name, { type: "application/json" });
   S.lastBk = new Date().toISOString(); save();
