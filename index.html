@@ -87,8 +87,8 @@ table.tb{width:100%;border-collapse:collapse;font-size:.92rem}.tb th,.tb td{padd
 .sugg{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .note{font-size:.84rem;color:var(--muted);text-align:center;line-height:1.6}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 8px) max(10px,env(safe-area-inset-left,0px));pointer-events:none}
-.nav nav{pointer-events:auto;max-width:36rem;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 4px 18px rgb(0 0 0 / .14);display:grid;grid-template-columns:repeat(5,1fr);padding:5px}
-.nav button{border:0;background:none;border-radius:14px;padding:5px 0;font-size:.74rem;white-space:nowrap;font-weight:800;color:var(--muted);display:flex;flex-direction:column;align-items:center}
+.nav nav{pointer-events:auto;max-width:36rem;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 4px 18px rgb(0 0 0 / .14);display:grid;grid-template-columns:repeat(6,1fr);padding:5px}
+.nav button{border:0;background:none;border-radius:14px;padding:5px 0;font-size:.7rem;white-space:nowrap;font-weight:800;color:var(--muted);display:flex;flex-direction:column;align-items:center}
 .nav button span{font-size:1.35rem;line-height:1.2}
 .nav button.on{background:#ccfbf1;color:var(--teal-d)}
 .modal{position:fixed;inset:0;background:rgb(0 0 0 / .5);z-index:60;display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) 8px max(8px,env(safe-area-inset-bottom,0px))}
@@ -105,6 +105,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:.92rem}.tb th,.tb td{padd
 .cam{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}.cam small{font-size:.62rem;color:var(--muted)}
 .ptag{position:absolute;left:2px;bottom:2px;font-style:normal;font-size:.68rem;font-weight:800;background:#fff;border-radius:6px;padding:0 2px}
 .ck{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-weight:800;margin:12px 0 6px}.ck input{width:22px;height:22px;accent-color:var(--teal)}.ck .sm{flex-basis:100%;font-weight:400;padding-left:30px}
+.qgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}.qgrid label{font-size:.76rem;font-weight:800;color:#374151;display:flex;flex-direction:column;gap:3px}.qgrid .inp{padding:9px 8px;text-align:right}
 .adv{background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:.84rem;line-height:1.55;color:#0c4a6e}.adv div+div{margin-top:3px}
 .hit{font-size:.84rem;color:#374151;background:#f8fafc;border-radius:10px;padding:6px 10px;margin:-4px 0 6px}
 mark{background:#fef08a;color:inherit;border-radius:3px;padding:0 1px}
@@ -370,10 +371,10 @@ async function shareText(text, title) {
 }
 
 /* ---------- 화면 틀 ---------- */
-const TABS = [["home", "🏠", "오늘"], ["new", "➕", "접수"], ["board", "📋", "현황"], ["cust", "🔍", "찾기"], ["money", "💰", "돈"]];
+const TABS = [["home", "🏠", "오늘"], ["new", "➕", "접수"], ["board", "📋", "현황"], ["cli", "🏢", "거래처"], ["cust", "🔍", "찾기"], ["money", "💰", "돈"]];
 let tab = "home", tabArg = {}, boardF = "work";
-function nav() { $("#nav").innerHTML = TABS.map(([k, e, l]) => `<button class="${tab === k || (tab === "order" && k === "board") ? "on" : ""}" data-t="${k}"><span>${e}</span>${l}</button>`).join(""); $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t)); }
-function go(t, arg) { tab = t; tabArg = arg || {}; nav(); ({ home: viewHome, new: viewNew, board: viewBoard, cust: viewCust, money: viewMoney, order: viewOrder, person: viewPerson })[t](arg || {}); scrollTo(0, 0); }
+function nav() { $("#nav").innerHTML = TABS.map(([k, e, l]) => `<button class="${tab === k || (tab === "order" && k === "board") || (["clione", "bat", "bill"].includes(tab) && k === "cli") ? "on" : ""}" data-t="${k}"><span>${e}</span>${l}</button>`).join(""); $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t)); }
+function go(t, arg) { tab = t; tabArg = arg || {}; nav(); ({ home: viewHome, new: viewNew, board: viewBoard, cust: viewCust, money: viewMoney, order: viewOrder, person: viewPerson, cli: viewCli, clione: viewCliOne, bat: viewBat, bill: viewBill })[t](arg || {}); scrollTo(0, 0); }
 const head = (title, sub, back) => `<header>${back ? `<button class="back" data-back="${back}">‹ 뒤로</button>` : ""}<h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}<button class="gear" data-set aria-label="설정">⚙</button></header>`;
 function wireHead(backArg) {
   $("#view").querySelector("[data-set]")?.addEventListener("click", openSettings);
@@ -401,6 +402,9 @@ function viewHome() {
   <div class="g4">${[0, 1, 2].map(k => `<button class="stat" data-f="${k}"><b>${n(k)}</b><span>${ST_E[k]} ${ST[k]}</span></button>`).join("")}<button class="stat" data-f="unpaid"><b>${O.filter(o => unpaid(o) && o.st === 3).length}</b><span>💸 안 받음</span></button></div>
   ${["05", "06"].includes(t.slice(5, 7)) ? `<section class="card warn"><p class="sm" style="margin:0">🧥 <b>5~6월은 세탁 사고가 가장 많은 달</b>이에요(겨울옷을 한꺼번에 맡기는 철). 검품·사진·접수증을 더 꼼꼼히 해 주세요. <span class="sm">— 교재 10절</span></p></section>` : ""}
   ${(() => { const A = O.flatMap(o => (o.acc || []).filter(a => a.st < 2).map(a => ({ o, a }))); return A.length ? `<section class="card warn"><div class="t">⚠️ 처리 중인 사고·불만 <span>${A.length}건</span></div>${[...new Set(A.map(x => x.o))].map(o => oRow(o)).join("")}</section>` : ""; })()}
+  ${(() => { const T = (S.cli || []).filter(cliDue).filter(c => !(S.bat || []).some(b => b.cid === c.id && b.d === t)), Lb = (S.bat || []).filter(b => b.st < 2 && b.due && b.due <= t);
+    return T.length || Lb.length ? `<section class="card"><div class="t">🏢 거래처 할 일 <span>수거 ${T.length} · 납품 ${Lb.length}</span></div>
+    ${T.map(c => `<button class="row" data-gocli="${c.id}"><span class="main"><b>🚚 ${KINDS[c.kind] || "🏢"} ${esc(c.name)}</b><span class="sm">오늘 정기 수거 · ${esc(c.addr || "")}</span></span>›</button>`).join("")}${Lb.map(batRow).join("")}</section>` : ""; })()}
   ${puList.length ? `<section class="card"><div class="t">🚚 수거하러 갈 곳 <span>${puList.length}건 · 오늘까지 ${puList.filter(o => o.puD <= t).length}</span></div>${puList.map(o => oRow(o)).join("")}</section>` : ""}
   ${dlList.length ? `<section class="card"><div class="t">📦 배송할 세탁물 <span>${dlList.length}건 · 오늘까지 ${dlList.filter(o => o.due <= t).length}</span></div>${dlList.map(o => oRow(o)).join("")}</section>` : ""}
   ${late.length ? `<section class="card warn"><div class="t">⏰ 날짜가 지났는데 아직 안 됨 <span>${late.length}건</span></div>${late.map(o => oRow(o)).join("")}</section>` : ""}
@@ -412,6 +416,8 @@ function viewHome() {
   <p class="note">장부는 이 휴대폰에만 저장돼요. ⚙ → 💾 백업을 자주 해 두세요.${S.lastBk ? `<br>마지막 백업 ${md(S.lastBk)}` : ""}</p>`;
   wireHead(); wireRows($("#view"), "home");
   $("#hNew").onclick = () => go("new");
+  $("#view").querySelectorAll("[data-gocli]").forEach(b => b.onclick = () => go("clione", { id: b.dataset.gocli }));
+  $("#view").querySelectorAll("[data-bat]").forEach(b => b.onclick = () => go("bat", { id: b.dataset.bat, from: "home" }));
   $("#view").querySelectorAll("[data-dly]").forEach(c => c.onchange = () => { S.daily ||= {}; const L = S.daily[t] ||= [], i = +c.dataset.dly; c.checked ? L.includes(i) || L.push(i) : L.splice(L.indexOf(i), 1);
     for (const d of Object.keys(S.daily)) if (dayDiff(d, t) > 60) delete S.daily[d]; save(); keep(viewHome); });
   $("#view").querySelectorAll("[data-f]").forEach(b => b.onclick = () => { boardF = b.dataset.f; go("board"); });
@@ -696,12 +702,14 @@ function viewCust() {
     const inP = o => !from || o.at.slice(0, 10) >= from;
     const C = custList().filter(c => !q || c.name.includes(q) || (qd.length >= 2 && digits(c.tel).includes(qd)));
     const R = q ? S.orders.filter(o => inP(o) && re.test(orderText(o))) : [];
+    const RB = q ? (S.bat || []).filter(x => (!from || x.d >= from) && re.test([x.no, cliById(x.cid)?.name, x.memo, x.signBy, ...(x.gear || []).flatMap(g => [g.code, g.note]), ...((cliById(x.cid)?.gearList || []).filter(g => (x.gear || []).some(y => y.code === g.code)).map(g => g.owner)), ...x.rows.map(r => r.k)].join(" "))).slice(0, 40) : [];
     const n = custMore ? 300 : 30;
-    $("#cRes").innerHTML = (q ? `<section class="card"><div class="t">🧾 접수 기록 <span>${R.length}건</span></div>${R.length ? R.slice(0, n).map(o => oRow(o) + recHit(o, re, q)).join("") : `<p class="sm" style="margin:0">"${esc(q)}"가 들어간 기록이 없어요.${custP !== "all" ? " 기간을 '전체 기간'으로 바꿔 보세요." : ""}</p>`}${R.length > n ? `<button class="btn b-gray mt" id="cMore">더 보기 (${R.length - n}건 더)</button>` : ""}</section>` : "") +
+    $("#cRes").innerHTML = (RB.length ? `<section class="card"><div class="t">🏢 거래처 회차 <span>${RB.length}건</span></div>${RB.map(batRow).join("")}</section>` : "") + (q ? `<section class="card"><div class="t">🧾 접수 기록 <span>${R.length}건</span></div>${R.length ? R.slice(0, n).map(o => oRow(o) + recHit(o, re, q)).join("") : `<p class="sm" style="margin:0">"${esc(q)}"가 들어간 기록이 없어요.${custP !== "all" ? " 기간을 '전체 기간'으로 바꿔 보세요." : ""}</p>`}${R.length > n ? `<button class="btn b-gray mt" id="cMore">더 보기 (${R.length - n}건 더)</button>` : ""}</section>` : "") +
       `<section class="card"><div class="t">${q ? "찾은 손님" : "최근 손님"} <span>${C.length}명</span></div>${C.slice(0, q ? 20 : 60).map(c => `<button class="row" data-ck="${esc(c.k)}"><span class="main"><b>${esc(c.name || "이름 없음")}</b><span class="sm">${esc(c.tel || "")} · ${c.n}번 맡김 · ${won(c.sum)}</span></span>${c.open ? `<span class="badge st1">맡긴 옷 ${c.open}</span>` : `<span class="sm">${md(c.last)}</span>`}</button>`).join("") || `<p class="sm" style="margin:0">${q ? "이름·전화번호가 맞는 손님은 없어요." : "아직 손님 기록이 없어요."}</p>`}</section>`;
     wireRows($("#cRes"), "cust");
     $("#cRes").querySelectorAll("[data-ck]").forEach(b => b.onclick = () => go("person", { k: b.dataset.ck, from: "cust" }));
     $("#cMore")?.addEventListener("click", () => { custMore = true; draw(); });
+    $("#cRes").querySelectorAll("[data-bat]").forEach(b => b.onclick = () => go("bat", { id: b.dataset.bat, from: "cli" }));
   };
   $("#cQ").oninput = e => { custQ = e.target.value; custMore = false; draw(); };
   $("#view").querySelectorAll("[data-cp]").forEach(b => b.onclick = () => { custP = b.dataset.cp; viewCust(); });
@@ -743,6 +751,8 @@ function viewMoney() {
   const days = {}; L.forEach(o => { const x = o.at.slice(0, 10); (days[x] ||= { n: 0, c: 0, s: 0 }); days[x].n++; days[x].c += cntO(o); days[x].s += sumO(o); });
   const kinds = {}; L.forEach(o => o.items.forEach(it => { kinds[it.k] = (kinds[it.k] || 0) + it.q; }));
   const owe = S.orders.filter(o => unpaid(o) && o.st === 3);
+  const BB = (S.bat || []).filter(x => x.st === 2 && x.outD >= a && x.outD <= b), cliAmt = BB.reduce((t, x) => t + batSum(x), 0), byCli = {};
+  BB.forEach(x => { const c = cliById(x.cid); byCli[c?.name || "거래처"] = (byCli[c?.name || "거래처"] || 0) + batSum(x); });
   const E = (S.exp || []).filter(e => e.d >= a && e.d <= b).sort((x, y) => y.d.localeCompare(x.d) || (y.at || "").localeCompare(x.at || ""));
   const spent = E.reduce((t, e) => t + (Number(e.amt) || 0), 0), cats = {};
   E.forEach(e => { cats[e.cat] = (cats[e.cat] || 0) + (Number(e.amt) || 0); });
@@ -752,7 +762,8 @@ function viewMoney() {
   <div class="chips">${Object.entries(P).map(([k, v]) => `<button class="chip ${k === moneyP ? "on" : ""}" data-mp="${k}">${v[0]}</button>`).join("")}</div>
   <div class="g2"><div class="stat"><b>${won(sum)}</b><span>접수 금액</span></div><div class="stat"><b>${L.length}건 · ${L.reduce((s, o) => s + cntO(o), 0)}벌</b><span>접수</span></div>
   <div class="stat"><b>${won(got)}</b><span>받은 돈</span></div><div class="stat"><b class="${sum - got ? "late" : ""}">${won(sum - got)}</b><span>아직 안 받은 돈</span></div>
-  <div class="stat"><b>${won(spent)}</b><span>➖ 지출</span></div><div class="stat" style="background:${got - spent < 0 ? "#fef2f2" : "#f0fdfa"}"><b class="${got - spent < 0 ? "late" : ""}" style="${got - spent < 0 ? "" : "color:var(--teal-d)"}">${won(got - spent)}</b><span>남는 돈 (받은 돈 − 지출)</span></div></div>
+  <div class="stat"><b>${won(spent)}</b><span>➖ 지출</span></div>${(S.cli || []).length ? `<div class="stat"><b>${won(cliAmt)}</b><span>🏢 거래처 납품 금액</span></div>` : ""}<div class="stat" style="background:${got + cliAmt - spent < 0 ? "#fef2f2" : "#f0fdfa"}"><b class="${got + cliAmt - spent < 0 ? "late" : ""}" style="${got + cliAmt - spent < 0 ? "" : "color:var(--teal-d)"}">${won(got + cliAmt - spent)}</b><span>남는 돈 (받은 돈${(S.cli || []).length ? " + 거래처" : ""} − 지출)</span></div></div>
+  ${Object.keys(byCli).length ? `<section class="card"><div class="t">🏢 거래처별 납품 금액 <span>${won(cliAmt)}</span></div><table class="tb">${Object.entries(byCli).sort((x, y) => y[1] - x[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${won(v)}</td></tr>`).join("")}</table><p class="sm" style="margin:6px 0 0">납품 완료한 날 기준 · 부가세 빼고</p></section>` : ""}
   <button class="btn b-orange" id="mExp">➖ 지출 적기<small>세제, 월세, 전기요금 같은 나가는 돈</small></button>
   ${fixTodo.length ? `<button class="btn b-gray" id="mFix">🔁 지난달 매달 나가는 돈 ${fixTodo.length}개 이번 달에 넣기<small>${fixTodo.map(f => esc(f.memo || f.cat)).slice(0, 4).join(", ")} · ${won(fixTodo.reduce((t, f) => t + Number(f.amt), 0))}</small></button>` : ""}
   <section class="card"><div class="t">➖ 지출 <span>${won(spent)}</span></div>
@@ -762,7 +773,7 @@ function viewMoney() {
   <section class="card"><div class="t">📅 날짜별</div>${Object.keys(days).length ? `<table class="tb"><tr><th>날짜</th><th>건</th><th>벌</th><th>금액</th></tr>${Object.keys(days).sort().reverse().map(x => `<tr><td>${md(x)}</td><td>${days[x].n}</td><td>${days[x].c}</td><td>${won(days[x].s)}</td></tr>`).join("")}</table>` : `<p class="sm" style="margin:0">이 기간에 접수한 옷이 없어요.</p>`}</section>
   ${Object.keys(kinds).length ? `<section class="card"><div class="t">👕 많이 맡긴 옷</div><table class="tb">${Object.entries(kinds).sort((x, y) => y[1] - x[1]).slice(0, 10).map(([k, n]) => `<tr><td>${esc(k)}</td><td>${n}벌</td></tr>`).join("")}</table></section>` : ""}
   <section class="card ${owe.length ? "warn" : ""}"><div class="t">💸 찾아갔는데 안 받은 돈 <span>${won(owe.reduce((s, o) => s + unpaid(o), 0))}</span></div>${owe.length ? owe.map(o => oRow(o)).join("") : `<p class="sm" style="margin:0">없어요 👍</p>`}</section>
-  <p class="note">매출은 접수한 날, 지출은 적은 날짜 기준이에요.<br>"남는 돈"은 실제로 받은 돈에서 지출을 뺀 금액이에요 (세금은 빼지 않았어요).</p>`;
+  <p class="note">매출은 접수한 날, 지출은 적은 날짜 기준이에요.<br>"남는 돈"은 받은 돈(거래처는 납품 금액)에서 지출을 뺀 금액이에요 (세금은 빼지 않았어요).</p>`;
   wireHead(); wireRows($("#view"), "money");
   $("#view").querySelectorAll("[data-mp]").forEach(b => b.onclick = () => { moneyP = b.dataset.mp; viewMoney(); });
   $("#mExp").onclick = () => expForm(null, () => keep(viewMoney));
@@ -806,6 +817,271 @@ function expForm(e, done) {
   });
 }
 
+/* ---------- 🏢 거래처 (병원·소방서 같은 기관 정기 세탁) ----------
+   거래처마다 정기 수거 요일·품목·계약 단가. 회차마다 수거 수량 → 납품 수량을 맞추고, 월말에 정산서.
+   병원: 감염성 세탁물 수량 따로 + 소독 기록(의료기관세탁물 관리규칙: 운반용기·적재고 소독 일시·약품·사용량을 소독일지에).
+   소방서: 방화복처럼 한 벌씩 번호로 세탁 횟수·이력 관리. */
+const KINDS = { 병원: "🏥", 소방서: "🚒", 요양원: "🏠", 호텔: "🏨", 기타: "🏢" };
+const UNITS = ["장", "벌", "개", "켤레", "kg"];
+const CLI_TPL = {
+  병원: [["시트(침대보)", "장"], ["이불 커버", "장"], ["베개 커버", "장"], ["환자복 상하", "벌"], ["수술복", "벌"], ["수술포", "장"], ["가운", "벌"], ["수건", "장"], ["담요", "장"], ["커튼", "장"]].map(([k, u]) => ({ k, u, p: 0, inf: true })),
+  소방서: [["방화복 상하", "벌", true], ["기동복", "벌"], ["근무복", "벌"], ["활동복", "벌"], ["두건", "개"], ["장갑", "켤레"], ["수건", "장"], ["침구(이불)", "장"]].map(([k, u, ind]) => ({ k, u, p: 0, ind: !!ind })),
+  요양원: [["시트", "장"], ["이불 커버", "장"], ["환자복", "벌"], ["수건", "장"], ["기저귀 커버", "개"]].map(([k, u]) => ({ k, u, p: 0, inf: true })),
+  호텔: [["시트", "장"], ["이불 커버", "장"], ["베개 커버", "장"], ["수건(대)", "장"], ["수건(소)", "장"], ["가운", "벌"]].map(([k, u]) => ({ k, u, p: 0 })),
+  기타: [["수건", "장"], ["유니폼", "벌"], ["시트", "장"]].map(([k, u]) => ({ k, u, p: 0 })),
+};
+const WDN = ["일", "월", "화", "수", "목", "금", "토"];
+const cliById = id => (S.cli || []).find(c => c.id === id);
+const batOf = cid => (S.bat || []).filter(b => b.cid === cid);
+const BST = ["🚚 수거", "🫧 세탁 중", "✅ 납품 완료"];
+const qn = v => Number(v) || 0;
+const rowBill = (c, r) => (c?.bill === "in" ? qn(r.in) : (r.out !== "" && r.out != null ? qn(r.out) : qn(r.in)));
+const batSum = b => { const c = cliById(b.cid); return b.rows.reduce((t, r) => t + rowBill(c, r) * qn(r.p), 0); };
+const batQty = b => b.rows.reduce((t, r) => t + qn(r.in), 0);
+const rowDiff = r => (r.out === "" || r.out == null) ? null : qn(r.in) - qn(r.out) - qn(r.lost) - qn(r.bad) - qn(r.re);
+const batDiffs = b => b.rows.filter(r => { const d = rowDiff(r); return d !== null && d !== 0; });
+const cliDue = c => c.active !== false && (c.days || []).includes(new Date(today() + "T00:00:00").getDay());
+const batDay = b => (b.st === 2 ? b.outD : b.d) || b.d;
+const cliShort = c => (c.name || "거래처").replace(/\s/g, "").slice(0, 2);
+function nextBatNo(c) { const d = today().slice(5).replace("-", ""), n = (S.bat || []).filter(b => b.cid === c.id && b.d === today()).length + 1; return `${cliShort(c)}-${d}${n > 1 ? "-" + n : ""}`; }
+function batPh(b) { return [...(b.ph || []), b.sign].filter(Boolean); }
+/* 방화복처럼 번호로 관리하는 품목: 번호별 세탁 이력 */
+function gearHist(cid, code) { return batOf(cid).filter(b => (b.gear || []).some(g => g.code === code)).sort((x, y) => x.d.localeCompare(y.d)); }
+
+function viewCli() {
+  S.cli ||= []; S.bat ||= [];
+  const act = S.cli.filter(c => c.active !== false), todays = act.filter(cliDue);
+  const open = S.bat.filter(b => b.st < 2).sort((a, b) => (a.due || "").localeCompare(b.due || ""));
+  const mon = today().slice(0, 7);
+  $("#view").innerHTML = head("🏢 거래처", "병원·소방서 같은 정기 세탁") + `
+  ${todays.length ? `<section class="card"><div class="t">📅 오늘(${WDN[new Date().getDay()]}) 수거할 거래처 <span>${todays.length}곳</span></div>
+    ${todays.map(c => { const done = S.bat.some(b => b.cid === c.id && b.d === today()); return `<div class="row"><span class="main"><b>${KINDS[c.kind] || "🏢"} ${esc(c.name)}</b><span class="sm">${esc(c.addr || "")}</span></span>${done ? `<span class="badge st2">수거함</span>` : `<button class="btn b-teal" data-newbat="${c.id}" style="width:auto;padding:9px 14px">🚚 수거 기록</button>`}</div>`; }).join("")}</section>` : ""}
+  ${open.length ? `<section class="card"><div class="t">🔄 진행 중인 회차 <span>${open.length}건</span></div>${open.map(batRow).join("")}</section>` : ""}
+  <section class="card"><div class="t">🏢 거래처 목록 <span>${act.length}곳</span></div>
+    ${act.map(c => { const B = batOf(c.id), m = B.filter(b => batDay(b).startsWith(mon)); return `<button class="row" data-cli="${c.id}"><span class="main"><b>${KINDS[c.kind] || "🏢"} ${esc(c.name)}</b><span class="sm">${(c.days || []).length ? "매주 " + c.days.slice().sort().map(d => WDN[d]).join("·") : "요일 미정"} · 이번 달 ${m.length}회 · ${won(m.reduce((t, b) => t + batSum(b), 0))}</span></span>›</button>`; }).join("") || `<p class="sm" style="margin:0">아직 거래처가 없어요. 아래에서 추가해 주세요.</p>`}
+  </section>
+  <button class="btn b-teal" id="cAdd">＋ 거래처 추가<small>병원·소방서·요양원·호텔 등</small></button>
+  ${S.cli.some(c => c.active === false) ? `<p class="note">거래 끝난 곳 ${S.cli.filter(c => c.active === false).length}곳은 숨겼어요. (거래처 화면에서 다시 켤 수 있어요)</p>` : ""}`;
+  wireHead();
+  $("#view").querySelectorAll("[data-cli]").forEach(b => b.onclick = () => go("clione", { id: b.dataset.cli }));
+  $("#view").querySelectorAll("[data-newbat]").forEach(b => b.onclick = () => newBat(cliById(b.dataset.newbat)));
+  $("#view").querySelectorAll("[data-bat]").forEach(b => b.onclick = () => go("bat", { id: b.dataset.bat, from: "cli" }));
+  $("#cAdd").onclick = () => cliForm(null);
+}
+function batRow(b) {
+  const c = cliById(b.cid), late = b.st < 2 && b.due && b.due < today(), dif = batDiffs(b).length, inf = b.rows.reduce((t, r) => t + qn(r.inf), 0);
+  return `<button class="row" data-bat="${b.id}"><span class="no">${esc(b.no)}</span><span class="main"><b>${KINDS[c?.kind] || "🏢"} ${esc(c?.name || "거래처")}</b>
+    <span class="sm">${batQty(b)}${b.rows[0]?.u || "장"} 수거${inf ? ` · 🦠 감염성 ${inf}` : ""} · ${won(batSum(b))}</span>
+    <span class="sm ${late ? "late" : ""}">${b.st === 2 ? `납품 ${md(b.outD)}` : `수거 ${md(b.d)} · 납품 예정 ${md(b.due)}${late ? " · 날짜 지남" : ""}`}${dif ? ` · <span class="late">수량 차이 ${dif}개 품목</span>` : ""}</span></span>
+    <span class="badge st${b.st === 2 ? 3 : b.st}">${BST[b.st]}</span></button>`;
+}
+function newBat(c, from = "cli") {
+  const b = { id: uid(), cid: c.id, no: nextBatNo(c), d: today(), due: addDays(today(), c.lead ?? 2), st: 0, t: { 0: new Date().toISOString() },
+    rows: c.items.map(it => ({ k: it.k, u: it.u, p: it.p, inf: "", in: "", out: "", re: "", bad: "", lost: "", isInf: !!it.inf, ind: !!it.ind })), gear: [], ph: [], sign: null, dis: null, memo: "" };
+  (S.bat ||= []).unshift(b); save(); go("bat", { id: b.id, from, fresh: 1 });
+}
+function cliForm(c) {
+  const C = c ? JSON.parse(JSON.stringify(c)) : { id: uid(), kind: "병원", name: "", person: "", tel: "", addr: "", days: [], lead: 2, bill: "out", vat: 1, items: CLI_TPL.병원.map(x => ({ ...x })), gearList: [], memo: "", active: true };
+  modal(c ? "🏢 거래처 고치기" : "🏢 거래처 추가", `<div id="clB"></div>`, (m, close) => {
+    const draw = () => {
+      m.querySelector("#clB").innerHTML = `
+      <label class="lab">종류</label><div class="chips">${Object.entries(KINDS).map(([k, e]) => `<button class="chip ${C.kind === k ? "on" : ""}" data-kd="${k}">${e} ${k}</button>`).join("")}</div>
+      ${!c ? `<p class="sm" style="margin:6px 0 0">종류를 바꾸면 아래 품목이 그 종류의 기본 품목으로 바뀌어요.</p>` : ""}
+      <label class="lab">이름</label><input class="inp" id="cN" value="${esc(C.name)}" placeholder="예: ○○병원 세탁실, ○○소방서">
+      <div class="g2"><div><label class="lab">담당자</label><input class="inp" id="cP" value="${esc(C.person)}" placeholder="예: 김간호사"></div><div><label class="lab">전화</label><input class="inp" id="cT" type="tel" value="${esc(C.tel)}"></div></div>
+      <label class="lab">주소·수거 장소</label><input class="inp" id="cA" value="${esc(C.addr)}" placeholder="예: 본관 지하 1층 린넨실">
+      <label class="lab">📅 정기 수거 요일</label><div class="chips">${WDN.map((w, i) => `<button class="chip ${C.days.includes(i) ? "on" : ""}" data-dw="${i}">${w}</button>`).join("")}</div>
+      <label class="lab">🚚 수거 후 며칠 뒤 납품</label><div class="chips">${[1, 2, 3, 7].map(n => `<button class="chip ${C.lead === n ? "on" : ""}" data-ld="${n}">${n}일</button>`).join("")}</div>
+      <label class="lab">💵 청구 기준</label><div class="chips"><button class="chip ${C.bill !== "in" ? "on" : ""}" data-bl="out">납품 수량</button><button class="chip ${C.bill === "in" ? "on" : ""}" data-bl="in">수거 수량</button></div>
+      <label class="ck"><input type="checkbox" id="cV" ${C.vat ? "checked" : ""}> 정산서에 부가세(10%) 따로 표시</label>
+      <label class="lab">👕 품목 · 단위 · 계약 단가</label>
+      ${C.items.map((it, i) => `<div style="border:1px solid var(--line);border-radius:12px;padding:8px;margin-top:6px">
+        <div style="display:flex;gap:6px"><input class="inp" data-ik="${i}" value="${esc(it.k)}" style="flex:1"><input class="inp price" data-ip="${i}" type="number" inputmode="numeric" value="${it.p || ""}" placeholder="단가"><button class="x" data-idel="${i}">✕</button></div>
+        <div class="chips" style="margin-top:6px">${UNITS.map(u => `<button class="chip ${it.u === u ? "on" : ""}" data-iu="${i}" data-uv="${u}" style="padding:4px 10px;font-size:.78rem">${u}</button>`).join("")}
+          <button class="chip ${it.inf ? "on" : ""}" data-iinf="${i}" style="padding:4px 10px;font-size:.78rem">🦠 감염성 구분</button><button class="chip ${it.ind ? "on" : ""}" data-iind="${i}" style="padding:4px 10px;font-size:.78rem">🔢 번호 관리</button></div></div>`).join("")}
+      <button class="btn b-gray mt" id="cIAdd">＋ 품목 추가</button>
+      <p class="sm">🦠 감염성 구분: 회차마다 감염성 수량을 따로 적어요(병원). 🔢 번호 관리: 방화복처럼 한 벌씩 번호로 세탁 횟수를 관리해요.</p>
+      <label class="lab">📝 메모</label><textarea class="inp" id="cM" placeholder="예: 감염성은 빨간 자루, 출입증 경비실">${esc(C.memo)}</textarea>
+      ${c ? `<label class="ck"><input type="checkbox" id="cAct" ${C.active !== false ? "checked" : ""}> 지금 거래 중 (끄면 목록에서 숨겨요)</label>` : ""}
+      <button class="btn b-teal mt" id="cSave">💾 저장</button>`;
+      const B = m.querySelector("#clB");
+      B.querySelectorAll("[data-kd]").forEach(x => x.onclick = () => { C.kind = x.dataset.kd; if (!c) C.items = CLI_TPL[C.kind].map(y => ({ ...y })); draw(); });
+      B.querySelector("#cN").oninput = e => { C.name = e.target.value; };
+      B.querySelector("#cP").oninput = e => { C.person = e.target.value; };
+      B.querySelector("#cT").onchange = e => { C.tel = fmtTel(e.target.value); };
+      B.querySelector("#cA").oninput = e => { C.addr = e.target.value; };
+      B.querySelector("#cM").oninput = e => { C.memo = e.target.value; };
+      B.querySelector("#cV").onchange = e => { C.vat = e.target.checked ? 1 : 0; };
+      B.querySelector("#cAct")?.addEventListener("change", e => { C.active = e.target.checked; });
+      B.querySelectorAll("[data-dw]").forEach(x => x.onclick = () => { const d = +x.dataset.dw; C.days.includes(d) ? C.days.splice(C.days.indexOf(d), 1) : C.days.push(d); draw(); });
+      B.querySelectorAll("[data-ld]").forEach(x => x.onclick = () => { C.lead = +x.dataset.ld; draw(); });
+      B.querySelectorAll("[data-bl]").forEach(x => x.onclick = () => { C.bill = x.dataset.bl; draw(); });
+      B.querySelectorAll("[data-ik]").forEach(x => x.oninput = e => { C.items[+x.dataset.ik].k = e.target.value; });
+      B.querySelectorAll("[data-ip]").forEach(x => x.oninput = e => { C.items[+x.dataset.ip].p = Number(e.target.value) || 0; });
+      B.querySelectorAll("[data-idel]").forEach(x => x.onclick = () => { C.items.splice(+x.dataset.idel, 1); draw(); });
+      B.querySelectorAll("[data-iu]").forEach(x => x.onclick = () => { C.items[+x.dataset.iu].u = x.dataset.uv; draw(); });
+      B.querySelectorAll("[data-iinf]").forEach(x => x.onclick = () => { const it = C.items[+x.dataset.iinf]; it.inf = !it.inf; draw(); });
+      B.querySelectorAll("[data-iind]").forEach(x => x.onclick = () => { const it = C.items[+x.dataset.iind]; it.ind = !it.ind; draw(); });
+      B.querySelector("#cIAdd").onclick = () => { C.items.push({ k: "새 품목", u: "장", p: 0 }); draw(); };
+      B.querySelector("#cSave").onclick = () => {
+        if (!C.name.trim()) return toast("거래처 이름을 적어 주세요"); if (!C.items.length) return toast("품목을 하나 이상 넣어 주세요");
+        C.name = C.name.trim(); S.cli ||= [];
+        if (c) Object.assign(c, C); else S.cli.push(C);
+        save(); m.onclose = null; close(); toast("저장했어요"); go("clione", { id: C.id });
+      };
+    };
+    draw();
+  });
+}
+function viewCliOne(arg) {
+  const c = cliById(arg.id); if (!c) return go("cli");
+  const B = batOf(c.id).sort((a, b) => b.d.localeCompare(a.d)), mon = today().slice(0, 7);
+  const months = [...new Set(B.map(b => batDay(b).slice(0, 7)))].sort().reverse();
+  if (!months.includes(mon)) months.unshift(mon);
+  const gears = c.items.some(it => it.ind);
+  $("#view").innerHTML = head(`${KINDS[c.kind] || "🏢"} ${esc(c.name)}`, `${(c.days || []).length ? "매주 " + c.days.slice().sort().map(d => WDN[d]).join("·") : "요일 미정"} · 수거 후 ${c.lead ?? 2}일 납품`, "cli") + `
+  <button class="btn b-teal" id="oNewBat" style="font-size:1.12rem">🚚 오늘 수거 기록하기<small>품목별 수량 적기</small></button>
+  <section class="card"><dl class="kv"><dt>담당자</dt><dd>${esc(c.person || "-")}</dd><dt>전화</dt><dd>${c.tel ? `<a href="tel:${digits(c.tel)}">${esc(c.tel)}</a>` : "-"}</dd>
+    <dt>장소</dt><dd>${esc(c.addr || "-")}</dd><dt>청구</dt><dd>${c.bill === "in" ? "수거 수량" : "납품 수량"} 기준${c.vat ? " · 부가세 별도" : ""}</dd>${c.memo ? `<dt>메모</dt><dd>${esc(c.memo)}</dd>` : ""}</dl>
+    <table class="tb mt">${c.items.map(it => `<tr><td>${esc(it.k)}${it.inf ? " 🦠" : ""}${it.ind ? " 🔢" : ""}</td><td>${it.p ? won(it.p) + " / " + it.u : `<span class="late">단가 없음</span>`}</td></tr>`).join("")}</table>
+    <button class="btn b-gray mt" id="cEdit">✏️ 거래처·단가 고치기</button></section>
+  <section class="card"><div class="t">🧾 월 정산서</div><div class="chips">${months.slice(0, 12).map(mm => { const st = (S.billSt || {})[c.id + mm] || {}; return `<button class="chip" data-bill="${mm}">${+mm.slice(5)}월${st.paid ? " ✅" : st.sent ? " 📤" : ""}</button>`; }).join("")}</div><p class="sm" style="margin:8px 0 0">📤 청구함 · ✅ 입금 확인</p></section>
+  ${gears ? `<section class="card"><div class="t">🔢 번호 관리 품목 <span>${(c.gearList || []).length}벌</span></div>${(c.gearList || []).length ? `<table class="tb"><tr><th>번호</th><th>주인</th><th>세탁</th><th>마지막</th></tr>${c.gearList.map(g => { const H = gearHist(c.id, g.code); return `<tr data-gear="${esc(g.code)}" style="cursor:pointer"><td><b>${esc(g.code)}</b></td><td>${esc(g.owner || "")}</td><td>${H.length}회</td><td>${H.length ? md(H[H.length - 1].d) : "-"}</td></tr>`; }).join("")}</table>` : `<p class="sm" style="margin:0">수거 기록에서 번호를 넣으면 여기에 쌓여요.</p>`}<button class="btn b-gray mt" id="gAdd">＋ 번호 등록 (예: 방화복 A-01 김소방)</button></section>` : ""}
+  <section class="card"><div class="t">📋 회차 기록 <span>${B.length}회</span></div>${B.slice(0, 60).map(batRow).join("") || `<p class="sm" style="margin:0">아직 수거 기록이 없어요.</p>`}</section>`;
+  wireHead();
+  $("#oNewBat").onclick = () => { if (S.bat.some(b => b.cid === c.id && b.d === today() && b.st === 0) && !confirm("오늘 이미 수거 기록이 있어요. 하나 더 만들까요?")) return; newBat(c, "clione"); };
+  $("#cEdit").onclick = () => cliForm(c);
+  $("#view").querySelectorAll("[data-bat]").forEach(b => b.onclick = () => go("bat", { id: b.dataset.bat, from: "clione" }));
+  $("#view").querySelectorAll("[data-bill]").forEach(b => b.onclick = () => go("bill", { id: c.id, m: b.dataset.bill }));
+  $("#view").querySelectorAll("[data-gear]").forEach(r => r.onclick = () => gearView(c, r.dataset.gear));
+  $("#gAdd")?.addEventListener("click", () => { const code = prompt("번호 (예: A-01)"); if (!code?.trim()) return; const owner = prompt("주인·소속 (예: 1팀 김소방)", "") || ""; c.gearList ||= []; if (c.gearList.some(g => g.code === code.trim())) return toast("이미 있는 번호예요"); c.gearList.push({ code: code.trim(), owner: owner.trim(), notes: "" }); save(); keep(() => viewCliOne(arg)); });
+}
+function gearView(c, code) {
+  const g = (c.gearList || []).find(x => x.code === code) || { code }, H = gearHist(c.id, code);
+  modal(`🔢 ${code} ${g.owner || ""}`, `<p style="margin:0 0 6px"><b>세탁 ${H.length}회</b>${H.length ? ` · 마지막 ${md(H[H.length - 1].d)}` : ""}</p>
+    <table class="tb">${H.slice().reverse().map(b => { const x = b.gear.find(y => y.code === code); return `<tr><td>${md(b.d)}</td><td>${esc(b.no)}</td><td style="text-align:left">${esc(x?.note || "")}</td></tr>`; }).join("") || `<tr><td>기록 없음</td></tr>`}</table>
+    <label class="lab">📝 상태 메모 (손상·수선 등)</label><textarea class="inp" id="gN">${esc(g.notes || "")}</textarea>
+    <p class="sm">세탁을 거듭하면 성능이 떨어질 수 있어요. 교체·폐기 기준은 소방서 담당자와 소방청 지침을 따라 주세요.</p>
+    <button class="btn b-teal mt" id="gS">💾 저장</button>`, (m, close) => {
+    m.querySelector("#gS").onclick = () => { if (c.gearList?.includes(g)) { g.notes = m.querySelector("#gN").value; save(); } close(); };
+  });
+}
+function viewBat(arg) {
+  const b = (S.bat || []).find(x => x.id === arg.id); if (!b) return go("cli");
+  const c = cliById(b.cid) || { name: "거래처", items: [] }, from = ["cli", "clione", "home", "bill"].includes(arg.from) ? arg.from : "clione";
+  const infOn = b.rows.some(r => r.isInf), indOn = b.rows.some(r => r.ind), totIn = batQty(b), totInf = b.rows.reduce((t, r) => t + qn(r.inf), 0), D = batDiffs(b);
+  const next = [["🫧 세탁 시작", "수거 수량을 다 적었으면 눌러요"], ["✅ 납품 완료", "납품 수량을 적고 눌러요 · 인수 서명"]][b.st];
+  $("#view").innerHTML = head(`${KINDS[c.kind] || "🏢"} ${esc(b.no)}`, `${esc(c.name)} · ${md(b.d)} 수거`, from) + `
+  <section class="card"><div class="steps" style="grid-template-columns:repeat(3,1fr)">${BST.map((s, k) => `<div class="${k < b.st ? "done" : k === b.st ? "cur" : ""}">${s}<br><span style="font-weight:400">${b.t?.[k] ? md(b.t[k]) : ""}</span></div>`).join("")}</div>
+    ${next ? `<button class="btn b-teal mt" id="bNext" style="font-size:1.1rem">${next[0]}<small>${next[1]}</small></button>` : ""}
+    ${b.st > 0 ? `<button class="btn b-gray mt" id="bPrev" style="padding:9px;font-size:.9rem">↩ 한 단계 되돌리기</button>` : ""}</section>
+  <section class="card"><div class="t">📦 수량 <span id="bTot">수거 ${totIn}${totInf ? ` · 🦠 ${totInf}` : ""}</span></div>
+    <div class="g2"><div><label class="lab" style="margin-top:0">수거일</label><input class="inp" type="date" id="bD" value="${esc(b.d)}"></div><div><label class="lab" style="margin-top:0">납품 예정</label><input class="inp" type="date" id="bDue" value="${esc(b.due)}"></div></div>
+    ${b.rows.map((r, i) => { const d = rowDiff(r); return `<div class="item" data-r="${i}"><div class="top"><b>${esc(r.k)}</b><span class="sm">${r.p ? won(r.p) + "/" + esc(r.u) : ""}</span></div>
+      <div class="qgrid"><label>수거<input class="inp" data-f="in" type="number" inputmode="numeric" value="${esc(r.in)}"></label>
+      ${r.isInf ? `<label>🦠 감염성<input class="inp" data-f="inf" type="number" inputmode="numeric" value="${esc(r.inf)}"></label>` : ""}
+      ${b.st >= 1 ? `<label>납품<input class="inp" data-f="out" type="number" inputmode="numeric" value="${esc(r.out)}"></label><label>재세탁<input class="inp" data-f="re" type="number" inputmode="numeric" value="${esc(r.re)}"></label><label>파손<input class="inp" data-f="bad" type="number" inputmode="numeric" value="${esc(r.bad)}"></label><label>분실<input class="inp" data-f="lost" type="number" inputmode="numeric" value="${esc(r.lost)}"></label>` : ""}</div>
+      <div class="rdiff">${diffHtml(r)}</div></div>`; }).join("")}
+    <button class="btn b-gray mt" id="bRowAdd" style="padding:9px">＋ 이번에만 있는 품목 추가</button>
+    <div class="total mt"><span>금액 <span class="sm">(${c.bill === "in" ? "수거" : "납품"} 수량 기준)</span></span><span id="bSum">${won(batSum(b))}</span></div></section>
+  ${indOn ? `<section class="card"><div class="t">🔢 번호 관리 <span>${(b.gear || []).length}벌</span></div>
+    <div class="chips">${(c.gearList || []).map(g => `<button class="chip ${b.gear.some(x => x.code === g.code) ? "on" : ""}" data-gc="${esc(g.code)}">${esc(g.code)}${g.owner ? " " + esc(g.owner) : ""}</button>`).join("")}<button class="chip add" id="bGNew">＋ 새 번호</button></div>
+    ${(b.gear || []).map((g, i) => `<div class="top mt" style="display:flex;gap:6px;align-items:center"><b style="min-width:4em">${esc(g.code)}</b><input class="inp" data-gn="${i}" value="${esc(g.note || "")}" placeholder="상태 (예: 오른팔 그을음, 지퍼 고장)"><span class="sm">${gearHist(c.id, g.code).length}회째</span></div>`).join("")}
+    <p class="sm" style="margin:8px 0 0">이번 회차에 들어온 번호를 눌러 표시해요. 번호별 세탁 횟수가 거래처 화면에 쌓여요.</p></section>` : ""}
+  ${totInf || infOn ? `<section class="card ${totInf ? "warn" : ""}"><div class="t">🦠 감염성 세탁물 · 소독 기록</div>
+    <p class="sm" style="margin:0 0 6px">의료기관세탁물 관리규칙: 감염성 세탁물은 일반 세탁물과 구분하고, 세탁 전 소독(증기·끓는 물·약물)하며, 운반 전 운반용기·적재고를 소독하고 소독일시·약품·사용량을 소독일지에 적어 차량에 둬요. 세부 기준은 최신 법령을 확인해 주세요.</p>
+    ${[["sep", "감염성 세탁물 따로 담아 운반"], ["pre", "세탁 전 소독 (증기·끓는 물·약물)"], ["car", "운반용기·적재고 소독"]].map(([k, l]) => `<label class="ck" style="margin:6px 0"><input type="checkbox" data-dk="${k}" ${b.dis?.[k] ? "checked" : ""}> ${l}</label>`).join("")}
+    <div class="g2"><div><label class="lab">소독 일시</label><input class="inp" type="datetime-local" id="disAt" value="${esc(b.dis?.at || "")}"></div><div><label class="lab">약품·사용량</label><input class="inp" id="disChem" value="${esc(b.dis?.chem || "")}" placeholder="예: 차아염소산 200mL"></div></div></section>` : ""}
+  <section class="card"><div class="t">📷 사진 · ✍️ 인수 서명</div>
+    <div class="thumbs">${(b.ph || []).map(pid => `<span class="ph"><img data-pid="${pid}" data-zoom="${pid}" alt="사진"><button data-rmp="${pid}">✕</button></span>`).join("")}<button class="cam" id="bCam">📷<small>수량표·자루</small></button></div>
+    ${b.sign ? `<p class="sm" style="margin:10px 0 4px">${esc(b.signBy || "담당자")} 인수 서명</p><img data-pid="${b.sign}" data-zoom="${b.sign}" alt="서명" style="width:170px;border:1px solid var(--line);border-radius:10px;background:#fff">` : ""}
+    <button class="btn b-gray mt" id="bSign" style="padding:10px">✍️ ${b.sign ? "서명 다시 받기" : "담당자 인수 서명 받기"}</button>
+    <label class="lab">📝 메모</label><textarea class="inp" id="bMemo" placeholder="예: 수술포 2장 혈흔 심함, 다음 회차 반납 예정">${esc(b.memo || "")}</textarea></section>
+  ${D.length && b.st === 2 ? `<section class="card warn"><p class="sm" style="margin:0">⚠️ 수량이 안 맞는 품목이 ${D.length}개 있어요. 분실·파손을 적거나 담당자와 확인해 주세요.</p></section>` : ""}
+  <button class="btn b-blue" id="bShare">📤 ${b.st === 2 ? "납품 확인서" : "수거 확인서"} 보내기<small>거래처 담당자에게 카톡·문자로</small></button>
+  <button class="btn b-red" id="bDel">🗑 이 회차 지우기</button>`;
+  wireHead(from === "bill" ? { id: c.id, m: batDay(b).slice(0, 7) } : from === "clione" ? { id: c.id } : undefined); fillThumbs($("#view"));
+  const V = $("#view"), re = () => keep(() => viewBat({ ...arg, fresh: 0 }));
+  V.querySelectorAll("[data-zoom]").forEach(im => im.onclick = () => zoomPhoto(im.dataset.zoom));
+  $("#bD").onchange = e => { b.d = e.target.value; save(); };
+  $("#bDue").onchange = e => { b.due = e.target.value; save(); };
+  V.querySelectorAll("[data-r]").forEach(box => { const r = b.rows[+box.dataset.r];
+    box.querySelectorAll("[data-f]").forEach(x => { x.oninput = e => { r[x.dataset.f] = e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0); save();
+      /* 다시 그리지 않고 이 줄의 차이·합계만 고친다 (다음 칸을 누를 때 입력이 사라지지 않게) */
+      box.querySelector(".rdiff").innerHTML = diffHtml(r); $("#bSum").textContent = won(batSum(b));
+      const ti = batQty(b), tf = b.rows.reduce((t, y) => t + qn(y.inf), 0); $("#bTot").textContent = `수거 ${ti}${tf ? ` · 🦠 ${tf}` : ""}`; }; }); });
+  $("#bRowAdd").onclick = () => { const k = prompt("품목 이름"); if (!k?.trim()) return; const p = Number(digits(prompt("단가 (원, 없으면 0)", "0") || "")) || 0; b.rows.push({ k: k.trim(), u: "장", p, inf: "", in: "", out: "", re: "", bad: "", lost: "" }); save(); re(); };
+  V.querySelectorAll("[data-gc]").forEach(x => x.onclick = () => { const code = x.dataset.gc; b.gear ||= []; const i = b.gear.findIndex(g => g.code === code); i >= 0 ? b.gear.splice(i, 1) : b.gear.push({ code, note: "" }); save(); re(); });
+  $("#bGNew")?.addEventListener("click", () => { const code = prompt("번호 (예: A-01)"); if (!code?.trim()) return; const owner = prompt("주인·소속 (예: 1팀 김소방)", "") || ""; c.gearList ||= []; if (!c.gearList.some(g => g.code === code.trim())) c.gearList.push({ code: code.trim(), owner: owner.trim(), notes: "" }); b.gear ||= []; if (!b.gear.some(g => g.code === code.trim())) b.gear.push({ code: code.trim(), note: "" }); save(); re(); });
+  V.querySelectorAll("[data-gn]").forEach(x => x.oninput = e => { b.gear[+x.dataset.gn].note = e.target.value; save(); });
+  V.querySelectorAll("[data-dk]").forEach(x => x.onchange = () => { b.dis ||= {}; b.dis[x.dataset.dk] = x.checked; if (x.checked && !b.dis.at) { const n = new Date(); b.dis.at = `${ymd(n)}T${pad(n.getHours())}:${pad(n.getMinutes())}`; } save(); re(); });
+  $("#disAt")?.addEventListener("change", e => { (b.dis ||= {}).at = e.target.value; save(); });
+  $("#disChem")?.addEventListener("input", e => { (b.dis ||= {}).chem = e.target.value; save(); });
+  $("#bCam").onclick = async () => { const id = await pickPhoto(); if (id) { (b.ph ||= []).push(id); save(); re(); } };
+  V.querySelectorAll("[data-rmp]").forEach(x => x.onclick = () => { if (!confirm("이 사진을 지울까요?")) return; delPhoto(x.dataset.rmp); b.ph = b.ph.filter(y => y !== x.dataset.rmp); save(); re(); });
+  $("#bSign").onclick = () => signPad(id => { if (b.sign) delPhoto(b.sign); b.sign = id; b.signBy = prompt("서명한 분 (예: 린넨실 김OO)", b.signBy || c.person || "") || ""; save(); re(); });
+  $("#bMemo").oninput = e => { b.memo = e.target.value; save(); };
+  $("#bNext")?.addEventListener("click", () => {
+    if (b.st === 0) { if (!batQty(b)) return toast("수거 수량을 적어 주세요"); b.st = 1; (b.t ||= {})[1] = new Date().toISOString(); save(); toast("세탁 중으로 바꿨어요"); return re(); }
+    const empty = b.rows.filter(r => qn(r.in) && (r.out === "" || r.out == null));
+    if (empty.length) { if (!confirm(`납품 수량을 안 적은 품목이 ${empty.length}개 있어요.\n수거 수량과 같다고 보고 채울까요?`)) return; empty.forEach(r => { r.out = qn(r.in) - qn(r.re) - qn(r.bad) - qn(r.lost); }); }
+    if (batDiffs(b).length && !confirm("수량이 안 맞는 품목이 있어요. 그래도 납품 완료로 할까요?")) return;
+    if (!b.sign && confirm("담당자 인수 서명을 받을까요?")) return signPad(id => { b.sign = id; b.signBy = prompt("서명한 분", c.person || "") || ""; b.st = 2; b.outD = today(); b.t[2] = new Date().toISOString(); save(); toast("납품 완료"); re(); });
+    b.st = 2; b.outD = today(); b.t[2] = new Date().toISOString(); save(); toast("납품 완료"); re();
+  });
+  $("#bPrev")?.addEventListener("click", () => { if (!confirm("한 단계 되돌릴까요?")) return; delete b.t[b.st]; b.st--; if (b.st < 2) b.outD = ""; save(); re(); });
+  $("#bShare").onclick = () => shareText(batText(b), `${shopName()} ${b.st === 2 ? "납품" : "수거"} 확인서`);
+  $("#bDel").onclick = () => { if (!confirm(`회차 ${b.no}를 지울까요? 되돌릴 수 없어요.`)) return; batPh(b).forEach(delPhoto); S.bat = S.bat.filter(x => x !== b); save(); go("clione", { id: c.id }); };
+}
+function diffHtml(r) {
+  const d = rowDiff(r);
+  return d !== null && d !== 0 ? `<div class="late sm">⚠️ 수거 ${qn(r.in)} − 납품 ${qn(r.out)} − 재세탁·파손·분실 = ${d > 0 ? d + esc(r.u) + " 모자라요" : -d + esc(r.u) + " 많아요"}</div>` : d === 0 && qn(r.in) ? `<div class="sm" style="color:var(--teal-d)">✓ 수량 맞음</div>` : "";
+}
+function batText(b) {
+  const c = cliById(b.cid) || {}, done = b.st === 2;
+  const L = [`[${shopName()}] ${done ? "납품" : "수거"} 확인서`, `${c.name} · ${b.no}`, `수거 ${md(b.d)}${done ? ` · 납품 ${md(b.outD)}` : ` · 납품 예정 ${md(b.due)}`}`, ""];
+  for (const r of b.rows.filter(r => qn(r.in) || qn(r.out))) {
+    const ex = [qn(r.re) && `재세탁 ${qn(r.re)}`, qn(r.bad) && `파손 ${qn(r.bad)}`, qn(r.lost) && `분실 ${qn(r.lost)}`].filter(Boolean).join(", ");
+    L.push(`■ ${r.k}: 수거 ${qn(r.in)}${r.u}${qn(r.inf) ? `(감염성 ${qn(r.inf)})` : ""}${done ? ` → 납품 ${qn(r.out)}${r.u}` : ""}${ex ? ` [${ex}]` : ""}`);
+  }
+  if (b.gear?.length) L.push(`■ 번호 관리: ${b.gear.map(g => g.code + (g.note ? `(${g.note})` : "")).join(", ")}`);
+  L.push("", `합계 수거 ${batQty(b)} · 금액 ${won(batSum(b))}${c.vat ? " (부가세 별도)" : ""}`);
+  if (b.dis && (b.dis.sep || b.dis.pre || b.dis.car)) L.push(`소독: ${[b.dis.sep && "감염성 분리", b.dis.pre && "세탁 전 소독", b.dis.car && "운반용기·적재고 소독"].filter(Boolean).join(", ")}${b.dis.at ? ` (${b.dis.at.replace("T", " ")}${b.dis.chem ? ", " + b.dis.chem : ""})` : ""}`);
+  if (b.memo) L.push(`메모: ${b.memo}`);
+  if (b.sign) L.push(`인수 서명: ${b.signBy || "담당자"}`);
+  if (S.shop.tel) L.push(`문의 ${fmtTel(S.shop.tel)}`);
+  return L.join("\n");
+}
+function viewBill(arg) {
+  const c = cliById(arg.id); if (!c) return go("cli");
+  const mm = arg.m || today().slice(0, 7), B = batOf(c.id).filter(b => batDay(b).startsWith(mm) && (b.st === 2 || c.bill === "in")).sort((a, b) => batDay(a).localeCompare(batDay(b)));
+  const items = [...new Set(B.flatMap(b => b.rows.filter(r => rowBill(c, r)).map(r => r.k)))];
+  const tot = {}, amt = {}; B.forEach(b => b.rows.forEach(r => { const q = rowBill(c, r); if (!q) return; tot[r.k] = (tot[r.k] || 0) + q; amt[r.k] = (amt[r.k] || 0) + q * qn(r.p); }));
+  const supply = Object.values(amt).reduce((t, x) => t + x, 0), vat = c.vat ? Math.round(supply / 10) : 0;
+  const key = c.id + mm, st = (S.billSt ||= {})[key] ||= {};
+  const unit = k => B.flatMap(b => b.rows).find(r => r.k === k);
+  const text = () => [`[${shopName()}] ${+mm.slice(5)}월 세탁 정산서`, `${c.name} 귀하 · ${mm.replace("-", "년 ")}월`, "", ...items.map(k => `■ ${k}: ${tot[k]}${unit(k)?.u || ""} × ${won(unit(k)?.p)} = ${won(amt[k])}`), "",
+    `회차 ${B.length}회 (${B.map(b => md(batDay(b)).replace(/\(.\)/, "")).join(", ")})`, c.vat ? `공급가액 ${won(supply)}\n부가세 ${won(vat)}\n합계 ${won(supply + vat)}` : `합계 ${won(supply)}`, S.shop.tel ? `문의 ${fmtTel(S.shop.tel)}` : ""].filter(x => x !== undefined).join("\n");
+  $("#view").innerHTML = head(`🧾 ${+mm.slice(5)}월 정산서`, esc(c.name), "clione") + `
+  <section class="card"><div class="t">${esc(c.name)} 귀하 <span>${mm.replace("-", "년 ")}월 · ${c.bill === "in" ? "수거" : "납품"} 수량 기준</span></div>
+    ${B.length ? `<div style="overflow-x:auto"><table class="tb" style="min-width:${Math.max(320, 90 + items.length * 64)}px"><tr><th>날짜</th>${items.map(k => `<th>${esc(k)}</th>`).join("")}<th>금액</th></tr>
+    ${B.map(b => `<tr data-bat="${b.id}" style="cursor:pointer"><td>${md(batDay(b)).replace(/\(.\)/, "")}</td>${items.map(k => { const r = b.rows.find(x => x.k === k); return `<td>${r && rowBill(c, r) ? rowBill(c, r) : ""}</td>`; }).join("")}<td>${batSum(b).toLocaleString()}</td></tr>`).join("")}
+    <tr><th>합계</th>${items.map(k => `<th>${tot[k]}</th>`).join("")}<th></th></tr>
+    <tr><td>단가</td>${items.map(k => `<td>${(unit(k)?.p || 0).toLocaleString()}</td>`).join("")}<td></td></tr>
+    <tr><td>금액</td>${items.map(k => `<td>${(amt[k] || 0).toLocaleString()}</td>`).join("")}<td><b>${supply.toLocaleString()}</b></td></tr></table></div>
+    ${c.vat ? `<div class="total mt" style="font-size:1rem"><span>공급가액</span><span>${won(supply)}</span></div><div class="total" style="font-size:1rem"><span>부가세 10%</span><span>${won(vat)}</span></div>` : ""}
+    <div class="total mt"><span>청구 합계</span><span>${won(supply + vat)}</span></div>` : `<p class="sm" style="margin:0">이 달에 납품 완료된 회차가 없어요.</p>`}
+    ${items.some(k => !unit(k)?.p) ? `<p class="late sm">단가가 없는 품목이 있어요. 거래처 화면에서 단가를 넣어 주세요.</p>` : ""}</section>
+  <div class="chips"><button class="chip ${st.sent ? "on" : ""}" id="blSent">📤 청구함${st.sent ? " " + md(st.sent) : ""}</button><button class="chip ${st.paid ? "on" : ""}" id="blPaid">✅ 입금 확인${st.paid ? " " + md(st.paid) : ""}</button></div>
+  <button class="btn b-blue" id="blShare">📤 정산서 보내기<small>카톡·문자·메일로 · 표는 화면을 캡처해 함께 보내도 돼요</small></button>
+  <p class="note">세금계산서는 홈택스에서 따로 발행해야 해요. 이 정산서는 수량·금액 확인용이에요.</p>`;
+  wireHead({ id: c.id });
+  $("#view").querySelectorAll("[data-bat]").forEach(r => r.onclick = () => go("bat", { id: r.dataset.bat, from: "bill" }));
+  $("#blSent").onclick = () => { st.sent = st.sent ? "" : today(); save(); keep(() => viewBill(arg)); };
+  $("#blPaid").onclick = () => { st.paid = st.paid ? "" : today(); st.amt = supply + vat; save(); keep(() => viewBill(arg)); };
+  $("#blShare").onclick = async () => { await shareText(text(), `${c.name} ${+mm.slice(5)}월 정산서`); if (!st.sent && confirm("청구함으로 표시할까요?")) { st.sent = today(); save(); keep(() => viewBill(arg)); } };
+}
+
 /* ---------- ⚙ 설정 · 가격표 · 백업 ---------- */
 function openSettings() {
   modal("⚙ 설정", `<div id="setB"></div>`, (m, close) => {
@@ -847,8 +1123,8 @@ function openSettings() {
       B.querySelector("#sDef").onclick = () => { if (confirm("가격표를 처음 기본값으로 되돌릴까요?")) { S.price = def().price; save(); draw(); } };
       B.querySelector("#sBk").onclick = backup;
       B.querySelector("#sLoad").onclick = () => restore(() => { close(); go("home"); });
-      B.querySelector("#sReset").onclick = async () => { if (!confirm("접수 기록, 손님, 지출, 사진을 모두 지울까요?\n(가게 정보와 가격표는 남아요)")) return; if (!confirm("정말 지울까요? 백업이 없으면 되돌릴 수 없어요.")) return;
-        for (const k of await allPhotoKeys().catch(() => [])) await delPhoto(k); S.orders = []; S.exp = []; S.draft = null; S.seq = { d: "", n: 0 }; save(); close(); go("home"); toast("모두 지웠어요"); };
+      B.querySelector("#sReset").onclick = async () => { if (!confirm("접수 기록, 손님, 지출, 거래처 회차·정산 기록, 사진을 모두 지울까요?\n(가게 정보, 가격표, 거래처 목록은 남아요)")) return; if (!confirm("정말 지울까요? 백업이 없으면 되돌릴 수 없어요.")) return;
+        for (const k of await allPhotoKeys().catch(() => [])) await delPhoto(k); S.orders = []; S.exp = []; S.bat = []; S.billSt = {}; S.draft = null; S.seq = { d: "", n: 0 }; save(); close(); go("home"); toast("모두 지웠어요"); };
     };
     m.onclose = () => go(tab, tabArg);
     draw();
@@ -857,7 +1133,7 @@ function openSettings() {
 const b64 = blob => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
 async function backup() {
   toast("백업 파일 만드는 중…");
-  const ph = {}, ids = [...S.orders.flatMap(orderPh), ...(S.exp || []).flatMap(e => e.ph || [])];
+  const ph = {}, ids = [...S.orders.flatMap(orderPh), ...(S.bat || []).flatMap(batPh), ...(S.exp || []).flatMap(e => e.ph || [])];
   for (const id of ids) { const b = await getPhoto(id).catch(() => null); if (b) ph[id] = await b64(b); }
   const name = `세탁소장부_${today()}.json`;
   const file = new File([JSON.stringify({ app: "laundry-shop", savedAt: new Date().toISOString(), data: S, photos: ph })], name, { type: "application/json" });
