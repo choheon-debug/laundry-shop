@@ -146,7 +146,7 @@ const DEF_PRICE = [
   ["넥타이", 3000, "드라이"], ["운동화", 6000, "특수"], ["이불", 15000, "론드리"], ["커튼(1폭)", 8000, "론드리"], ["가죽·모피", 0, "특수"], ["얼룩 빼기 추가", 3000, ""], ["수선", 0, ""],
 ];
 const def = () => ({
-  v: 1, shop: { name: "", tel: "", keep: 30, msgDone: "[{가게}] {이름}님, 맡기신 옷({옷})이 다 되었어요. 편하실 때 찾으러 오세요. 감사합니다.", msgPick: "[{가게}] {이름}님, 세탁물을 수거했어요. 가게에서 검품하고 사진과 접수증을 보내 드릴게요.", msgReady: "[{가게}] {이름}님, 세탁이 끝났어요. {배송날}에 문 앞으로 배송해 드릴게요.", msgDeliv: "[{가게}] {이름}님, 세탁물을 문 앞에 두었어요. 이용해 주셔서 감사합니다." },
+  v: 1, shop: { name: "", tel: "", keep: 30, msgDone: "[{가게}] {이름}님, 맡기신 옷({옷})이 다 되었어요. 편하실 때 찾으러 오세요. 감사합니다.", msgPick: "[{가게}] {이름}님, 세탁물을 수거했어요. 가게에서 검품하고 사진과 접수증을 보내 드릴게요.", msgReady: "[{가게}] {이름}님, 세탁이 끝났어요. {배송날}에 문 앞으로 배송해 드릴게요.", msgDeliv: "[{가게}] {이름}님, 세탁물을 문 앞에 두었어요. 이용해 주셔서 감사합니다.", bank: "", acct: "", holder: "", payInDone: true, msgPay: "[{가게}] {이름}님, 세탁비 {금액}입니다.\n입금 계좌: {계좌}\n(접수번호 {번호}) 감사합니다." },
   price: DEF_PRICE.map(([k, p, m]) => ({ k, p, m })), seq: { d: "", n: 0 }, orders: [], draft: null, exp: [],
 });
 let S = def();
@@ -346,8 +346,11 @@ const itemPh = it => [...(it.ph || []), ...(it.lab || [])];
 const orderPh = o => [...o.items.flatMap(itemPh), o.sign, ...(o.puPh || []), ...(o.dlPh || []), ...(o.acc || []).flatMap(a => a.ph || [])].filter(Boolean);
 const custKey = o => digits(o.tel) || o.name.trim();
 const smsURL = (tel, body) => `sms:${digits(tel)}${/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(body)}`;
-const fillMsg = (t, o) => String(t || "").replace(/\{가게\}/g, shopName()).replace(/\{이름\}/g, o.name || "손님").replace(/\{옷\}/g, itemsTxt(o) || "세탁물").replace(/\{번호\}/g, o.no).replace(/\{배송날\}/g, md(o.due));
-const doneMsg = o => fillMsg(isPU(o) ? S.shop.msgReady : S.shop.msgDone, o);
+const acctTxt = () => S.shop.acct ? `${S.shop.bank ? S.shop.bank + " " : ""}${S.shop.acct}${S.shop.holder ? ` (예금주 ${S.shop.holder})` : ""}` : "";
+const payLine = o => unpaid(o) && S.shop.acct ? `\n받으실 돈 ${won(unpaid(o))} · 입금 계좌 ${acctTxt()}` : "";
+const fillMsg = (t, o) => String(t || "").replace(/\{금액\}/g, won(unpaid(o) || sumO(o))).replace(/\{계좌\}/g, acctTxt() || "(계좌번호를 ⚙에 넣어 주세요)").replace(/\{가게\}/g, shopName()).replace(/\{이름\}/g, o.name || "손님").replace(/\{옷\}/g, itemsTxt(o) || "세탁물").replace(/\{번호\}/g, o.no).replace(/\{배송날\}/g, md(o.due));
+const doneMsg = o => fillMsg(isPU(o) ? S.shop.msgReady : S.shop.msgDone, o) + (S.shop.payInDone ? payLine(o) : "");
+const payMsg = o => fillMsg(S.shop.msgPay, o);
 function receipt(o) {
   const L = [`[${shopName()}] 접수증`, `번호 ${o.no} · ${md(o.at)} 접수${o.rush ? " · 급함" : ""}`, `${o.name || "손님"}님`, ""];
   for (const it of o.items) {
@@ -362,8 +365,16 @@ function receipt(o) {
   L.push("", `합계 ${won(sumO(o))}${o.paid >= sumO(o) && sumO(o) ? " (결제 완료)" : o.paid ? ` (받은 돈 ${won(o.paid)})` : ""}`, isPU(o) ? `수거 ${md(o.puD)} ${o.puT || ""} · 배송 예정 ${md(o.due)}\n주소 ${o.addr}` : `찾으실 날: ${md(o.due)}`);
   if (o.pocket) L.push(`주머니 확인함${o.pocketM ? `: ${o.pocketM}` : ""}`);
   if (o.agree) L.push(isPU(o) ? "위 기존 상태는 검품 사진으로 손님께 보내 드렸습니다." : `위 기존 상태는 손님과 함께 확인했습니다.${o.sign ? " (서명 받음)" : ""}`);
+  if (unpaid(o) && S.shop.acct) L.push(`입금 계좌: ${acctTxt()}`);
   if (S.shop.tel) L.push(`문의 ${fmtTel(S.shop.tel)}`);
   return L.join("\n");
+}
+/* 💳 결제 안내: 문자 앱(전화번호가 있으면) 또는 카톡 공유 */
+function payAsk(o) {
+  if (!S.shop.acct) { toast("⚙에서 입금 계좌를 먼저 넣어 주세요"); return openSettings(); }
+  if (!unpaid(o)) return toast("받을 돈이 없어요");
+  o.payMsg = new Date().toISOString(); save();
+  if (o.tel) location.href = smsURL(o.tel, payMsg(o)); else shareText(payMsg(o), "결제 안내");
 }
 async function shareText(text, title) {
   if (navigator.share) { try { await navigator.share({ text, title }); return; } catch (e) { if (e.name === "AbortError") return; } }
@@ -636,6 +647,7 @@ function viewOrder(arg) {
     ${o.fee ? `<div class="total" style="font-size:1rem"><span>🚗 배송비</span><span>${won(o.fee)}</span></div>` : ""}
     <div class="total mt"><span>합계</span><span>${won(tot)}</span></div>
     <div class="total" style="font-size:1rem"><span>받은 돈</span><span class="${due ? "late" : ""}">${won(o.paid || 0)}${due ? ` · ${won(due)} 남음` : " · 다 받음"}</span></div>
+    ${due ? `<button class="btn b-blue mt" id="oPayMsg">💳 결제 안내 문자<small>${won(due)} · ${S.shop.acct ? esc(acctTxt()) : "⚙에서 계좌번호를 넣어 주세요"}${o.payMsg ? ` · ${md(o.payMsg)} 보냄` : ""}</small></button>` : ""}
     <button class="btn ${due ? "b-orange" : "b-gray"} mt" id="oPay">${due ? `💵 ${won(due)} 받았어요` : "↩ 돈 안 받은 걸로 바꾸기"}</button>
   </section>
   <div class="g2">${o.tel ? `<a class="btn b-green" href="${esc(smsURL(o.tel, doneMsg(o)))}" id="oSms">📱 ${PU ? "세탁 끝 문자" : "완료 문자"}<small>문자 앱이 열려요</small></a>` : `<button class="btn b-green" id="oMsg">📱 완료 안내<small>보낼 글 복사</small></button>`}<button class="btn b-blue" id="oRcpt">🧾 접수증<small>카톡·문자로 보내기</small></button></div>
@@ -664,6 +676,7 @@ function viewOrder(arg) {
     viewOrder({ ...arg, fresh: false });
   });
   $("#oPrev")?.addEventListener("click", () => { if (!confirm(`'${stN(o, o.st - 1)}' 단계로 되돌릴까요?`)) return; setSt(o, o.st - 1); viewOrder({ ...arg, fresh: false }); });
+  $("#oPayMsg")?.addEventListener("click", () => payAsk(o));
   $("#oPay").onclick = () => { o.paid = unpaid(o) ? sumO(o) : 0; save(); toast(o.paid ? "받은 돈으로 적었어요" : "안 받은 걸로 바꿨어요"); keep(() => viewOrder({ ...arg, fresh: false })); };
   $("#oSms")?.addEventListener("click", () => { o.sms = new Date().toISOString(); save(); });
   $("#oMsg")?.addEventListener("click", () => shareText(doneMsg(o), "완료 안내"));
@@ -733,9 +746,17 @@ function viewPerson(arg) {
   $("#view").innerHTML = head(`📒 ${esc(c.name)}`, esc(c.tel), back) + `
   <section class="card"><dl class="kv"><dt>맡긴 횟수</dt><dd>${L.length}번 · ${L.reduce((t, o) => t + cntO(o), 0)}벌</dd><dt>모두</dt><dd>${won(L.reduce((t, o) => t + sumO(o), 0))}</dd>
     <dt>안 받은 돈</dt><dd class="${L.some(unpaid) ? "late" : ""}">${won(L.reduce((t, o) => t + (o.st === 3 ? unpaid(o) : 0), 0))}</dd></dl>
-    <div class="g2 mt">${c.tel ? `<a class="btn b-gray" href="tel:${digits(c.tel)}">📞 전화</a>` : "<span></span>"}<button class="btn b-teal" id="pNew">➕ 이 손님 새 접수</button></div></section>
+    <div class="g2 mt">${c.tel ? `<a class="btn b-gray" href="tel:${digits(c.tel)}">📞 전화</a>` : "<span></span>"}<button class="btn b-teal" id="pNew">➕ 이 손님 새 접수</button></div>
+    ${L.some(o => unpaid(o)) ? `<button class="btn b-blue mt" id="pPay">💳 안 받은 돈 모아서 결제 안내<small>${L.filter(o => unpaid(o)).length}건 · ${won(L.reduce((t, o) => t + unpaid(o), 0))}</small></button>` : ""}</section>
   <section class="card"><div class="t">맡긴 기록</div>${L.map(o => oRow(o)).join("")}</section>`;
   wireHead(back === "order" ? { id: arg.oid } : undefined); wireRows($("#view"), "person");
+  $("#pPay")?.addEventListener("click", () => {
+    if (!S.shop.acct) { toast("⚙에서 입금 계좌를 먼저 넣어 주세요"); return openSettings(); }
+    const U = L.filter(o => unpaid(o)), sum = U.reduce((t, o) => t + unpaid(o), 0);
+    const msg = `[${shopName()}] ${c.name}님, 세탁비 안내드려요.\n${U.map(o => `- ${o.no} ${itemsTxt(o) || "세탁물"} ${won(unpaid(o))}`).join("\n")}\n합계 ${won(sum)}\n입금 계좌: ${acctTxt()}\n감사합니다.`;
+    U.forEach(o => { o.payMsg = new Date().toISOString(); }); save();
+    if (c.tel) location.href = smsURL(c.tel, msg); else shareText(msg, "결제 안내");
+  });
   $("#pNew").onclick = () => { if (S.draft?.items?.length && !S.draft.edit && !confirm("쓰던 접수가 있어요. 지우고 이 손님으로 새로 쓸까요?")) return; go("new", { cust: c }); };
 }
 
@@ -1061,7 +1082,7 @@ function viewBill(arg) {
   const key = c.id + mm, st = (S.billSt ||= {})[key] ||= {};
   const unit = k => B.flatMap(b => b.rows).find(r => r.k === k);
   const text = () => [`[${shopName()}] ${+mm.slice(5)}월 세탁 정산서`, `${c.name} 귀하 · ${mm.replace("-", "년 ")}월`, "", ...items.map(k => `■ ${k}: ${tot[k]}${unit(k)?.u || ""} × ${won(unit(k)?.p)} = ${won(amt[k])}`), "",
-    `회차 ${B.length}회 (${B.map(b => md(batDay(b)).replace(/\(.\)/, "")).join(", ")})`, c.vat ? `공급가액 ${won(supply)}\n부가세 ${won(vat)}\n합계 ${won(supply + vat)}` : `합계 ${won(supply)}`, S.shop.tel ? `문의 ${fmtTel(S.shop.tel)}` : ""].filter(x => x !== undefined).join("\n");
+    `회차 ${B.length}회 (${B.map(b => md(batDay(b)).replace(/\(.\)/, "")).join(", ")})`, c.vat ? `공급가액 ${won(supply)}\n부가세 ${won(vat)}\n합계 ${won(supply + vat)}` : `합계 ${won(supply)}`, S.shop.acct ? `입금 계좌: ${acctTxt()}` : "", S.shop.tel ? `문의 ${fmtTel(S.shop.tel)}` : ""].filter(x => x !== undefined).join("\n");
   $("#view").innerHTML = head(`🧾 ${+mm.slice(5)}월 정산서`, esc(c.name), "clione") + `
   <section class="card"><div class="t">${esc(c.name)} 귀하 <span>${mm.replace("-", "년 ")}월 · ${c.bill === "in" ? "수거" : "납품"} 수량 기준</span></div>
     ${B.length ? `<div style="overflow-x:auto"><table class="tb" style="min-width:${Math.max(320, 90 + items.length * 64)}px"><tr><th>날짜</th>${items.map(k => `<th>${esc(k)}</th>`).join("")}<th>금액</th></tr>
@@ -1073,12 +1094,14 @@ function viewBill(arg) {
     <div class="total mt"><span>청구 합계</span><span>${won(supply + vat)}</span></div>` : `<p class="sm" style="margin:0">이 달에 납품 완료된 회차가 없어요.</p>`}
     ${items.some(k => !unit(k)?.p) ? `<p class="late sm">단가가 없는 품목이 있어요. 거래처 화면에서 단가를 넣어 주세요.</p>` : ""}</section>
   <div class="chips"><button class="chip ${st.sent ? "on" : ""}" id="blSent">📤 청구함${st.sent ? " " + md(st.sent) : ""}</button><button class="chip ${st.paid ? "on" : ""}" id="blPaid">✅ 입금 확인${st.paid ? " " + md(st.paid) : ""}</button></div>
+  ${c.tel ? `<button class="btn b-green" id="blSms">📱 담당자에게 문자로 보내기<small>${esc(c.person || "")} ${esc(c.tel)}${S.shop.acct ? " · 입금 계좌 포함" : " · ⚙에 계좌를 넣으면 같이 가요"}</small></button>` : ""}
   <button class="btn b-blue" id="blShare">📤 정산서 보내기<small>카톡·문자·메일로 · 표는 화면을 캡처해 함께 보내도 돼요</small></button>
   <p class="note">세금계산서는 홈택스에서 따로 발행해야 해요. 이 정산서는 수량·금액 확인용이에요.</p>`;
   wireHead({ id: c.id });
   $("#view").querySelectorAll("[data-bat]").forEach(r => r.onclick = () => go("bat", { id: r.dataset.bat, from: "bill" }));
   $("#blSent").onclick = () => { st.sent = st.sent ? "" : today(); save(); keep(() => viewBill(arg)); };
   $("#blPaid").onclick = () => { st.paid = st.paid ? "" : today(); st.amt = supply + vat; save(); keep(() => viewBill(arg)); };
+  $("#blSms")?.addEventListener("click", () => { if (!st.sent) { st.sent = today(); save(); } location.href = smsURL(c.tel, text()); });
   $("#blShare").onclick = async () => { await shareText(text(), `${c.name} ${+mm.slice(5)}월 정산서`); if (!st.sent && confirm("청구함으로 표시할까요?")) { st.sent = today(); save(); keep(() => viewBill(arg)); } };
 }
 
@@ -1091,11 +1114,17 @@ function openSettings() {
       <label class="lab">📞 가게 전화번호 (접수증에 들어가요)</label><input class="inp" id="sTel" type="tel" value="${esc(S.shop.tel)}">
       <label class="lab">📚 마지막 위생교육 받은 날 <span class="sm">(매년 3시간)</span></label><input class="inp" type="date" id="sEdu" value="${esc(S.shop.edu || "")}">
       <label class="lab">📦 며칠 넘게 안 찾아가면 알려 줄까요?</label><div class="chips">${[14, 30, 60, 90].map(n => `<button class="chip ${S.shop.keep === n ? "on" : ""}" data-keep="${n}">${n}일</button>`).join("")}</div>
+      <label class="lab">💳 입금 계좌 <span class="sm">(결제 안내 문자·접수증·정산서에 들어가요)</span></label>
+      <div class="g2"><input class="inp" id="sBank" value="${esc(S.shop.bank)}" placeholder="은행 (예: 국민)"><input class="inp" id="sHolder" value="${esc(S.shop.holder)}" placeholder="예금주"></div>
+      <input class="inp mt" id="sAcct" inputmode="numeric" value="${esc(S.shop.acct)}" placeholder="계좌번호 (예: 123-456-789012)">
+      <label class="ck"><input type="checkbox" id="sPayIn" ${S.shop.payInDone ? "checked" : ""}> 완료·세탁 끝 문자에 받을 돈과 계좌를 함께 넣기 (안 받은 돈이 있을 때만)</label>
+      <label class="lab">💳 결제 안내 문자 문구</label><textarea class="inp" id="sMsgPay">${esc(S.shop.msgPay)}</textarea>
+      <p class="sm" style="margin:4px 0 0">{금액} 자리에 받을 돈, {계좌} 자리에 위 계좌가 들어가요.</p>
       <label class="lab">📱 완료 문자 문구</label><textarea class="inp" id="sMsg">${esc(S.shop.msgDone)}</textarea>
       <label class="lab">🚚 수거했을 때 문자</label><textarea class="inp" id="sMsgP">${esc(S.shop.msgPick)}</textarea>
       <label class="lab">📦 세탁 끝(배송 안내) 문자</label><textarea class="inp" id="sMsgR">${esc(S.shop.msgReady)}</textarea>
       <label class="lab">🏠 배송 완료 문자</label><textarea class="inp" id="sMsgD">${esc(S.shop.msgDeliv)}</textarea>
-      <p class="sm" style="margin:4px 0 0">{가게} {이름} {옷} {번호} {배송날} 자리에 알아서 들어가요.</p>
+      <p class="sm" style="margin:4px 0 0">{가게} {이름} {옷} {번호} {배송날} {금액} {계좌} 자리에 알아서 들어가요.</p>
       <label class="lab">💲 가격표 <span class="sm">(접수할 때 누르는 단추)</span></label>
       <div id="sPrice">${S.price.map((p, i) => `<div class="top" style="display:flex;gap:6px;margin-top:6px"><input class="inp" data-pk="${i}" value="${esc(p.k)}" style="flex:1"><input class="inp price" data-pp="${i}" type="number" inputmode="numeric" value="${p.p || ""}" placeholder="0"><button class="x" data-pdel="${i}" aria-label="빼기">✕</button></div>
       <div class="chips" style="margin:4px 0 6px">${METHODS.map(m => `<button class="chip ${p.m === m ? "on" : ""}" data-pm="${i}" data-mv="${m}" style="padding:4px 10px;font-size:.78rem">${m}</button>`).join("")}</div>`).join("")}</div>
@@ -1111,6 +1140,11 @@ function openSettings() {
       B.querySelector("#sEdu").onchange = e => { S.shop.edu = e.target.value; save(); };
       B.querySelector("#sTel").onchange = e => { S.shop.tel = fmtTel(e.target.value); e.target.value = S.shop.tel; save(); };
       B.querySelectorAll("[data-keep]").forEach(b => b.onclick = () => { S.shop.keep = +b.dataset.keep; save(); draw(); });
+      B.querySelector("#sBank").oninput = e => { S.shop.bank = e.target.value.trim(); save(); };
+      B.querySelector("#sHolder").oninput = e => { S.shop.holder = e.target.value.trim(); save(); };
+      B.querySelector("#sAcct").oninput = e => { S.shop.acct = e.target.value.trim(); save(); };
+      B.querySelector("#sPayIn").onchange = e => { S.shop.payInDone = e.target.checked; save(); };
+      B.querySelector("#sMsgPay").oninput = e => { S.shop.msgPay = e.target.value; save(); };
       B.querySelector("#sMsg").oninput = e => { S.shop.msgDone = e.target.value; save(); };
       B.querySelector("#sMsgP").oninput = e => { S.shop.msgPick = e.target.value; save(); };
       B.querySelector("#sMsgR").oninput = e => { S.shop.msgReady = e.target.value; save(); };
