@@ -1233,7 +1233,8 @@ function openSettings() {
       <button class="btn b-teal" id="sBk">💾 백업 파일 만들기<small>사진 포함 · 카톡이나 파일에 저장</small></button>
       <button class="btn b-gray mt" id="sLoad">📂 백업 불러오기</button>
       <p class="sm">장부는 이 휴대폰의 이 브라우저에만 저장돼요. 손님 전화번호가 들어 있으니 백업 파일은 남에게 보내지 마세요.</p>
-      <button class="btn b-red mt" id="sReset">🗑 장부 모두 지우기</button>`;
+      <button class="btn b-red mt" id="sReset">🗑 장부 모두 지우기</button>
+      <p class="sm" style="text-align:center;margin-top:14px"><a href="privacy.html" target="_blank" rel="noopener" style="color:inherit">🔒 개인정보처리방침</a></p>`;
       const B = m.querySelector("#setB");
       B.querySelector("#sName").oninput = e => { S.shop.name = e.target.value.trim(); save(); };
       B.querySelector("#sEdu").onchange = e => { S.shop.edu = e.target.value; save(); };
